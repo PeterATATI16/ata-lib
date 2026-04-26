@@ -1,0 +1,15 @@
+io\atalib\annotation\AtaService.class
+io\atalib\domain\AbstractAuditingEntity_.class
+io\atalib\domain\BaseEntity.class
+io\atalib\annotation\AtaEntity.class
+io\atalib\controller\AbstractGenericController.class
+io\atalib\mapper\EntityMapper.class
+io\atalib\util\AuditUtils.class
+io\atalib\security\SecuredCrud.class
+io\atalib\service\AbstractGenericService.class
+io\atalib\annotation\AtaController.class
+io\atalib\security\CrudSecurityAspect.class
+io\atalib\domain\AbstractAuditingEntity.class
+io\atalib\exception\EntityNotFoundException.class
+io\atalib\service\GenericService.class
+io\atalib\annotation\AtaMapper.class

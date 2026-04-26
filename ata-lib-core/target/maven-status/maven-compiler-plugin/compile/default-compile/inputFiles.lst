@@ -1,0 +1,15 @@
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\annotation\AtaController.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\annotation\AtaEntity.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\annotation\AtaMapper.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\annotation\AtaService.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\controller\AbstractGenericController.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\domain\AbstractAuditingEntity.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\domain\AbstractAuditingEntity_.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\domain\BaseEntity.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\exception\EntityNotFoundException.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\mapper\EntityMapper.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\security\CrudSecurityAspect.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\security\SecuredCrud.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\service\AbstractGenericService.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\service\GenericService.java
+C:\Users\peter\Desktop\IT\OWN\ata-lib\ata-lib-core\src\main\java\io\atalib\util\AuditUtils.java
