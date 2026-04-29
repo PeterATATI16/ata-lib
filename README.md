@@ -55,7 +55,7 @@ Get this automatically :
 
 ```xml
 <dependency>
-    <groupId>com.github.PeterATATI16</groupId>
+    <groupId>com.github.PeterATATI16.ata-lib</groupId>
     <artifactId>ata-lib-spring-boot-starter</artifactId>
     <version>v1.1.0</version>
 </dependency>
@@ -65,7 +65,7 @@ Get this automatically :
 
 ```xml
 <dependency>
-    <groupId>com.github.PeterATATI16</groupId>
+    <groupId>com.github.PeterATATI16.ata-lib</groupId>
     <artifactId>ata-lib-core</artifactId>
     <version>v1.1.0</version>
 </dependency>
@@ -94,7 +94,7 @@ In `maven-compiler-plugin > annotationProcessorPaths` — **order matters** : Lo
                 <version>${mapstruct.version}</version>
             </path>
             <path>
-                <groupId>com.github.PeterATATI16</groupId>
+                <groupId>com.github.PeterATATI16.ata-lib</groupId>
                 <artifactId>ata-lib-processor</artifactId>
                 <version>v1.1.0</version>
             </path>
