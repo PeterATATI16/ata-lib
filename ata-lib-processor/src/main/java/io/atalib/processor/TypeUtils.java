@@ -20,8 +20,12 @@ public final class TypeUtils {
     }
 
     public static TypeResolution resolve(String fqn) {
+        // typeMirror.toString() embeds type annotations in the type string on Java 8+
+        // e.g. "java.lang.@jakarta.validation.constraints.NotBlank String"
+        // Strip them before resolving so TypeUtils only sees the bare type.
+        String clean = fqn.replaceAll("@[^\\s<>(,@]+(?:\\([^)]*\\))?\\s*", "").trim();
         Set<String> imports = new LinkedHashSet<>();
-        String displayName = simplify(fqn, imports);
+        String displayName = simplify(clean, imports);
         return new TypeResolution(displayName, imports);
     }
 
