@@ -2,15 +2,43 @@
 
 Generic CRUD library for Spring Boot projects.
 
-Provides reusable abstractions for entity, service, controller and security layers — eliminating CRUD boilerplate across microservices.
+Provides reusable abstractions for entity, service, controller and security layers — eliminating CRUD boilerplate across microservices. With the annotation processor, a single annotated entity generates a complete REST API automatically.
+
+---
+
+## What you get
+
+Write this :
+
+```java
+@AtaEntity(table = "staff", responseExclude = {"password"}, baseUrl = "/api/v1/staff")
+@Getter @Setter @NoArgsConstructor
+@Entity
+public class Staff extends AbstractAuditingEntity {
+    @NotBlank private String firstName;
+    @Email    private String email;
+    private   String password;
+}
+```
+
+Get this automatically :
+
+| Generated file | Content |
+|---|---|
+| `StaffResponseDto` | All fields + `id`, excluding `password` |
+| `StaffRequestDto` | All fields, excluding `id` and audit fields |
+| `StaffMapper` | MapStruct interface — `toDto`, `toEntity`, `updateEntity` |
+| `StaffRepository` | `JpaRepository<Staff, Long>` + `findAllByDeletedFalse()` |
+| `StaffServiceImpl` | Extends `AbstractGenericService`, full CRUD logic |
+| `StaffController` | Extends `AbstractGenericController`, 5 REST endpoints |
+
+**5 endpoints ready, 0 boilerplate written.**
 
 ---
 
 ## Installation
 
-### Via JitPack
-
-Add the repository in your `pom.xml` :
+### 1. Add the JitPack repository
 
 ```xml
 <repositories>
@@ -21,25 +49,61 @@ Add the repository in your `pom.xml` :
 </repositories>
 ```
 
-Then add the dependency — **choose one** based on your project type (see below) :
+### 2. Choose your dependency
+
+**Option A — New project** (no existing JPA/AOP config) :
 
 ```xml
-<!-- Option A — New project (no existing JPA/AOP config) -->
 <dependency>
     <groupId>com.github.PeterATATI16</groupId>
     <artifactId>ata-lib-spring-boot-starter</artifactId>
-    <version>v1.0.1</version>
-</dependency>
-
-<!-- Option B — Existing project (JHipster, custom Spring config, etc.) -->
-<dependency>
-    <groupId>com.github.PeterATATI16</groupId>
-    <artifactId>ata-lib-core</artifactId>
-    <version>v1.0.1</version>
+    <version>v1.1.0</version>
 </dependency>
 ```
 
-Also add Lombok (if not already present) :
+**Option B — Existing project** (JHipster, custom Spring config, etc.) :
+
+```xml
+<dependency>
+    <groupId>com.github.PeterATATI16</groupId>
+    <artifactId>ata-lib-core</artifactId>
+    <version>v1.1.0</version>
+</dependency>
+```
+
+> See [Starter vs Core](#starter-vs-core) below for guidance.
+
+### 3. Configure annotation processors
+
+In `maven-compiler-plugin > annotationProcessorPaths` — **order matters** : Lombok → MapStruct → ata-lib-processor.
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <annotationProcessorPaths>
+            <path>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </path>
+            <path>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+            </path>
+            <path>
+                <groupId>com.github.PeterATATI16</groupId>
+                <artifactId>ata-lib-processor</artifactId>
+                <version>v1.1.0</version>
+            </path>
+        </annotationProcessorPaths>
+    </configuration>
+</plugin>
+```
+
+Also add Lombok as a compile dependency if not already present :
 
 ```xml
 <dependency>
@@ -49,16 +113,146 @@ Also add Lombok (if not already present) :
 </dependency>
 ```
 
-And in `maven-compiler-plugin > annotationProcessorPaths` — Lombok **must come before** MapStruct :
+---
 
-```xml
-<path><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId></path>
-<path><groupId>org.mapstruct</groupId><artifactId>mapstruct-processor</artifactId><version>...</version></path>
+## Quick Start
+
+### 1. Write your entity
+
+```java
+@AtaEntity(
+    table           = "staff",
+    responseExclude = {"password"},                 // excluded from ResponseDto
+    requestExclude  = {"id"},                       // excluded from RequestDto (audit fields always excluded)
+    baseUrl         = "/api/v1/staff"               // controller base URL
+)
+@Getter @Setter @NoArgsConstructor
+@Entity                                             // required directly — Spring's entity scanner does not follow meta-annotations
+public class Staff extends AbstractAuditingEntity {
+
+    @Column(length = 100)
+    @NotBlank @Size(max = 100)
+    private String firstName;
+
+    @Column(length = 100)
+    @NotBlank @Size(max = 100)
+    private String lastName;
+
+    @Column(unique = true, length = 150)
+    @Email @NotBlank
+    private String email;
+
+    private String password;
+}
+```
+
+`AbstractAuditingEntity` provides automatically : `id`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy`, `deletedBy`, `deleted`.
+
+### 2. That's it
+
+Build the project — the processor generates 6 files. The 5 REST endpoints are immediately available :
+
+| Method | Path | Action |
+|--------|------|--------|
+| `POST`   | `/api/v1/staff`      | Create |
+| `PUT`    | `/api/v1/staff/{id}` | Update |
+| `GET`    | `/api/v1/staff/{id}` | Get by ID |
+| `GET`    | `/api/v1/staff`      | Get all (paginated) |
+| `DELETE` | `/api/v1/staff/{id}` | Soft delete |
+
+### 3. Customize what you need
+
+Override only what differs from the default behaviour.
+
+**Custom service logic** — extend the generated `ServiceImpl` in a different package and annotate with `@Primary` :
+
+```java
+// Your package: com.example.service (not the entity's package)
+@Service
+@Primary
+public class StaffService extends StaffServiceImpl {
+
+    public StaffService(StaffRepository repository, StaffMapper mapper) {
+        super(repository, mapper);
+    }
+
+    @Override
+    protected void beforeCreate(StaffRequestDto dto) {
+        // hash password, check uniqueness, etc.
+    }
+}
+```
+
+**Security on generated endpoints** — configure Spring Security globally (recommended for generated controllers) :
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.POST,   "/api/v1/staff").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.PUT,    "/api/v1/staff/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/v1/staff/**").hasRole("ADMIN")
+            .anyRequest().authenticated());
+        return http.build();
+    }
+}
+```
+
+**Security with `@SecuredCrud` / additional endpoints** — write a full manual controller. In this case, exclude the generated controller from your component scan and write your own extending `AbstractGenericController` directly (see [Manual mode](#manual-mode-without-processor)) :
+
+```java
+@AtaController("/api/v1/staff")
+@SecuredCrud(create = {"ADMIN"}, update = {"ADMIN"}, delete = {"ADMIN"})
+public class StaffController
+        extends AbstractGenericController<StaffRequestDto, StaffResponseDto, Long> {
+
+    public StaffController(StaffService service) { super(service); }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<StaffResponseDto>> search(@RequestParam String q) {
+        // custom endpoint
+    }
+}
 ```
 
 ---
 
-## Starter vs Core — which one to use?
+## @AtaEntity attributes
+
+| Attribute | Type | Default | Description |
+|---|---|---|---|
+| `table` | `String` | snake_case of class name | SQL table name |
+| `responseExclude` | `String[]` | `{}` | Fields to exclude from `ResponseDto`. Audit fields are always excluded. |
+| `requestExclude` | `String[]` | `{}` | Fields to exclude from `RequestDto`. `id` + audit fields are always excluded. |
+| `baseUrl` | `String` | `/{classNameLowercase}` | Controller base URL |
+
+**Fields always excluded from ResponseDto** : `createdAt`, `updatedAt`, `createdBy`, `updatedBy`, `deleted`, `deletedBy`
+
+**Fields always excluded from RequestDto** : same + `id`
+
+---
+
+## Lifecycle hooks
+
+Override any hook in a custom `ServiceImpl` :
+
+```java
+protected void beforeCreate(REQUEST_DTO dto)                      {}
+protected void afterMapping(ENTITY entity, REQUEST_DTO dto)       {}
+protected void afterCreate(ENTITY entity, REQUEST_DTO dto)        {}
+protected void beforeUpdate(ID id, REQUEST_DTO dto)               {}
+protected void afterUpdateMapping(ENTITY entity, REQUEST_DTO dto) {}
+protected void afterUpdate(ENTITY entity, REQUEST_DTO dto)        {}
+protected void beforeDelete(ID id)                                {}
+protected void afterDelete(ID id)                                 {}
+```
+
+---
+
+## Starter vs Core
 
 | Condition | Use |
 |---|---|
@@ -98,173 +292,20 @@ public class AtaLibConfiguration {
 
 ---
 
-## Quick Start — full example (Staff entity)
-
-### Entity
-
-```java
-@Entity
-@Table(name = "staff")
-@Getter @Setter @NoArgsConstructor
-public class Staff extends AbstractAuditingEntity {
-    @Column(name = "first_name", length = 100) private String firstName;
-    @Column(name = "last_name",  length = 100) private String lastName;
-    @Column(name = "email",      length = 150, unique = true) private String email;
-}
-```
-
-> `AbstractAuditingEntity` provides automatically : `id`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy`, `deletedBy`, `deleted`.
-
-### DTOs
-
-```java
-public class StaffRequestDto {
-    @NotBlank @Size(max = 100) private String firstName;
-    @NotBlank @Size(max = 100) private String lastName;
-    @Email    @Size(max = 150) private String email;
-    // getters / setters
-}
-
-public class StaffResponseDto {
-    private Long id;
-    private String firstName, lastName, email;
-    private LocalDateTime createdAt, updatedAt;
-    private String createdBy;
-    // getters / setters
-}
-```
-
-### Mapper
-
-```java
-@Mapper(componentModel = "spring")
-public interface StaffMapper {
-
-    @Mapping(target = "id",        ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "deletedBy", ignore = true)
-    @Mapping(target = "deleted",   ignore = true)
-    Staff toEntity(StaffRequestDto dto);
-
-    StaffResponseDto toResponseDto(Staff staff);
-
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id",        ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "deletedBy", ignore = true)
-    @Mapping(target = "deleted",   ignore = true)
-    void updateEntity(@MappingTarget Staff entity, StaffRequestDto dto);
-}
-```
-
-### Repository
-
-```java
-@Repository
-public interface StaffRepository extends JpaRepository<Staff, Long> {
-    Page<Staff> findAllByDeletedFalse(Pageable pageable);
-}
-```
-
-### Service
-
-```java
-public interface StaffService extends GenericService<StaffRequestDto, StaffResponseDto, Long> {}
-
-@AtaService
-public class StaffServiceImpl
-        extends AbstractGenericService<Staff, StaffRequestDto, StaffResponseDto, Long>
-        implements StaffService {
-
-    public StaffServiceImpl(StaffRepository repo, StaffMapper mapper) {
-        super(repo, mapper::toEntity, mapper::toResponseDto, mapper::updateEntity);
-    }
-
-    @Override
-    protected Page<Staff> fetchEntities(Pageable pageable) {
-        return ((StaffRepository) repository).findAllByDeletedFalse(pageable);
-    }
-
-    @Override
-    public List<StaffResponseDto> getAllWithoutPagination() {
-        return repository.findAll().stream()
-                .filter(s -> !Boolean.TRUE.equals(s.getDeleted()))
-                .map(entityToDtoMapper)
-                .toList();
-    }
-}
-```
-
-### Controller
-
-```java
-@AtaController("/api/v1/staff")
-@Tag(name = "Staff")
-@SecuredCrud(
-    create = {"ADMIN"},
-    update = {"ADMIN"},
-    delete = {"ADMIN"}
-)
-public class StaffController
-        extends AbstractGenericController<StaffRequestDto, StaffResponseDto, Long> {
-
-    public StaffController(StaffService service) {
-        super(service);
-    }
-}
-```
-
-**Result** — 5 REST endpoints available automatically :
-
-| Method | Path | Action | Access |
-|--------|------|--------|--------|
-| `POST` | `/api/v1/staff` | Create | ADMIN |
-| `PUT` | `/api/v1/staff/{id}` | Update | ADMIN |
-| `GET` | `/api/v1/staff/{id}` | Get by ID | Authenticated |
-| `GET` | `/api/v1/staff?page=0` | Get all (paginated) | Authenticated |
-| `DELETE` | `/api/v1/staff/{id}` | Soft delete | ADMIN |
-
----
-
 ## Available annotations
 
-| Annotation | Equivalent | Works via meta-annotation? |
-|---|---|---|
-| `@AtaService` | `@Service + @Transactional` | ✅ Yes |
-| `@AtaController(path)` | `@RestController + @RequestMapping(path)` | ✅ Yes |
-| `@SecuredCrud` | Declarative role/permission security on CRUD | ✅ Yes (AOP) |
-| `@AtaEntity` | `@Entity + @EntityListeners(AuditingEntityListener.class)` | ⚠️ Spring scans `@Entity` directly — keep `@Entity` on the class |
+| Annotation | Equivalent |
+|---|---|
+| `@AtaEntity(...)` | `@Entity + @EntityListeners(AuditingEntityListener.class)` + triggers processor |
+| `@AtaService` | `@Service + @Transactional` |
+| `@AtaController(path)` | `@RestController + @RequestMapping(path)` |
+| `@SecuredCrud` | Declarative role/permission security on CRUD endpoints |
 
 ---
 
-## Lifecycle hooks (AbstractGenericService)
+## Manual mode (without processor)
 
-Override any hook in your `ServiceImpl` :
-
-```java
-protected void beforeCreate(REQUEST_DTO dto)                     {}
-protected void afterMapping(ENTITY entity, REQUEST_DTO dto)      {}
-protected void afterCreate(ENTITY entity, REQUEST_DTO dto)       {}
-protected void beforeUpdate(ID id, REQUEST_DTO dto)              {}
-protected void afterUpdateMapping(ENTITY entity, REQUEST_DTO dto){}
-protected void afterUpdate(ENTITY entity, REQUEST_DTO dto)       {}
-protected void beforeDelete(ID id)                               {}
-protected void afterDelete(ID id)                                {}
-```
-
----
-
-## Known limitations
-
-- **Lombok meta-annotations** : Lombok does not process annotations declared on composed annotations. `@Getter`, `@Setter`, etc. must be placed directly on the entity class.
-- **`@AtaMapper`** : MapStruct's annotation processor does not detect `@Mapper` through meta-annotations. Use `@Mapper(componentModel = "spring")` directly.
-- **`@Entity` detection** : Spring Boot's entity scan uses `AnnotationTypeFilter` with `considerMetaAnnotations=false`. Place `@Entity` directly on the class, alongside `@AtaEntity` if desired.
+If you prefer full control and want to write each layer yourself, omit `ata-lib-processor` from `annotationProcessorPaths`. Refer to `USAGE-EXAMPLE.java` in the repository for the complete manual example.
 
 ---
 
@@ -272,16 +313,26 @@ protected void afterDelete(ID id)                                {}
 
 ```
 ata-lib-parent
-├── ata-lib-core               ← all abstractions (no auto-configuration)
+├── ata-lib-core               ← abstractions (no auto-configuration)
 │   ├── io.atalib.domain       → AbstractAuditingEntity
 │   ├── io.atalib.service      → GenericService, AbstractGenericService
 │   ├── io.atalib.controller   → AbstractGenericController
-│   ├── io.atalib.security     → SecuredCrud, CrudSecurityAspect
-│   ├── io.atalib.annotation   → @AtaEntity, @AtaService, @AtaController, @AtaMapper
+│   ├── io.atalib.security     → @SecuredCrud, CrudSecurityAspect
+│   ├── io.atalib.annotation   → @AtaEntity, @AtaService, @AtaController
 │   ├── io.atalib.exception    → EntityNotFoundException
 │   └── io.atalib.util         → AuditUtils
-└── ata-lib-spring-boot-starter  ← auto-configuration (EnableJpaAuditing, EnableAspectJAutoProxy)
+├── ata-lib-processor          ← annotation processor (compile-time code generation)
+│   └── io.atalib.processor    → AtaEntityProcessor + generators
+└── ata-lib-spring-boot-starter  ← auto-configuration (@EnableJpaAuditing, AOP, security aspect)
 ```
+
+---
+
+## Known limitations
+
+- **`@Entity` must be direct** : Spring Boot's entity scanner does not follow meta-annotations. Place `@Entity` directly on the class in addition to `@AtaEntity`.
+- **Lombok annotations must be direct** : `@Getter`, `@Setter`, etc. must be placed directly on the entity class.
+- **`@Builder` conflicts with inherited fields** : do not use `@Builder` on entities. Use `@SuperBuilder` if a builder is required.
 
 ---
 

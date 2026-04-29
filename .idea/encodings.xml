@@ -3,6 +3,8 @@
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/ata-lib-core/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/ata-lib-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ata-lib-processor/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ata-lib-processor/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/ata-lib-spring-boot-starter/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/ata-lib-spring-boot-starter/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />

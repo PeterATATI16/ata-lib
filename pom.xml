@@ -6,13 +6,14 @@
 
     <groupId>io.atalib</groupId>
     <artifactId>ata-lib-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>pom</packaging>
     <name>ata-lib :: Parent</name>
     <description>Generic CRUD library for Spring Boot projects</description>
 
     <modules>
         <module>ata-lib-core</module>
+        <module>ata-lib-processor</module>
         <module>ata-lib-spring-boot-starter</module>
     </modules>
 
