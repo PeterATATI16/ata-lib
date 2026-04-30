@@ -19,6 +19,10 @@ public final class ServiceGenerator {
         sb.append("package ").append(pkg).append(";\n\n");
         sb.append("import io.atalib.annotation.AtaService;\n");
         sb.append("import io.atalib.service.AbstractGenericService;\n");
+        sb.append("import org.springframework.data.domain.Page;\n");
+        sb.append("import org.springframework.data.domain.PageRequest;\n");
+        sb.append("import org.springframework.data.domain.Pageable;\n");
+        sb.append("import org.springframework.data.domain.Sort;\n");
         sb.append("import java.util.List;\n");
         sb.append("import java.util.stream.Collectors;\n\n");
         sb.append("@AtaService\n");
@@ -33,6 +37,13 @@ public final class ServiceGenerator {
         sb.append("        super(repository, mapper::toEntity, mapper::toDto, mapper::updateEntity);\n");
         sb.append("        this.repository = repository;\n");
         sb.append("        this.mapper = mapper;\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    protected Page<").append(entity).append("> fetchEntities(Pageable pageable) {\n");
+        sb.append("        Sort sort = Sort.by(Sort.Direction.DESC, \"updatedAt\");\n");
+        sb.append("        PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);\n");
+        sb.append("        return repository.findAllByDeletedFalse(pageRequest);\n");
         sb.append("    }\n\n");
 
         sb.append("    @Override\n");
