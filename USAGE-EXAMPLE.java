@@ -2,66 +2,214 @@
 // GUIDE D'UTILISATION — ata-lib 1.0.0
 // =============================================================================
 //
-// 1. AJOUTER LA DÉPENDANCE DANS VOTRE pom.xml
-// =============================================================================
-//
-// <dependency>
-//     <groupId>io.atalib</groupId>
-//     <artifactId>ata-lib-core</artifactId>
-//     <version>1.0.0</version>
-// </dependency>
-//
-// Ajouter aussi Lombok (si pas déjà présent) :
-// <dependency>
-//     <groupId>org.projectlombok</groupId>
-//     <artifactId>lombok</artifactId>
-//     <optional>true</optional>
-// </dependency>
-//
-// Et dans maven-compiler-plugin > annotationProcessorPaths (Lombok AVANT MapStruct) :
-// <path><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId></path>
-// <path><groupId>org.mapstruct</groupId><artifactId>mapstruct-processor</artifactId></path>
+// DEUX MODES :
+//   • Mode processor (recommandé) — 1 fichier → CRUD complet généré automatiquement
+//   • Mode manuel                  — écrire chaque couche soi-même (plus de contrôle)
 //
 // =============================================================================
-// 2. CONFIGURATION SPRING (à faire une seule fois par projet)
+// 1. DÉPENDANCES pom.xml
 // =============================================================================
 //
-// Si votre projet n'a PAS déjà @EnableJpaAuditing et @EnableAspectJAutoProxy,
-// utilisez le starter qui les active automatiquement :
+// Dépendance principale (choisir l'une ou l'autre) :
 //
-// <dependency>
-//     <groupId>io.atalib</groupId>
-//     <artifactId>ata-lib-spring-boot-starter</artifactId>
-//     <version>1.0.0</version>
-// </dependency>
+//   Starter (auto-configure JPA auditing + AOP + sécurité) :
+//   <dependency>
+//       <groupId>io.atalib</groupId>
+//       <artifactId>ata-lib-spring-boot-starter</artifactId>
+//       <version>1.0.0</version>
+//   </dependency>
 //
-// Si votre projet a DÉJÀ ces configurations (JHipster, etc.), utilisez uniquement
-// ata-lib-core et enregistrez CrudSecurityAspect manuellement :
+//   Core seul (si le projet configure déjà @EnableJpaAuditing / @EnableAspectJAutoProxy) :
+//   <dependency>
+//       <groupId>io.atalib</groupId>
+//       <artifactId>ata-lib-core</artifactId>
+//       <version>1.0.0</version>
+//   </dependency>
 //
-// @Configuration
-// public class AtaLibConfiguration {
-//     @Bean public CrudSecurityAspect crudSecurityAspect() {
-//         return new CrudSecurityAspect();
-//     }
-// }
+// Annotation processors (maven-compiler-plugin > annotationProcessorPaths) :
+// Ordre OBLIGATOIRE : Lombok → MapStruct → ata-lib-processor
 //
-// Aussi ajouter vos packages à @EntityScan et @EnableJpaRepositories :
-// @EntityScan(basePackages = { "com.existing.entity", "com.yourapp.domain" })
-// @EnableJpaRepositories({ "com.existing.repository", "com.yourapp.repository" })
+//   <annotationProcessorPaths>
+//       <path><groupId>org.projectlombok</groupId>
+//             <artifactId>lombok</artifactId><version>...</version></path>
+//       <path><groupId>org.mapstruct</groupId>
+//             <artifactId>mapstruct-processor</artifactId><version>...</version></path>
+//       <path><groupId>io.atalib</groupId>
+//             <artifactId>ata-lib-processor</artifactId><version>1.0.0</version></path>
+//   </annotationProcessorPaths>
 //
 // =============================================================================
-// 3. ENTITÉ — extends AbstractAuditingEntity
+// MODE PROCESSOR — 1 fichier par entité, tout le reste est généré
 // =============================================================================
 //
-// Note : pas de @Builder sur les entités JPA — le Builder Lombok n'inclut pas
-// les champs hérités, ce qui cause des conflits avec MapStruct.
+// 2. ENTITÉ — seul fichier à écrire
+// =============================================================================
+//
+// Note : @Builder n'est pas compatible avec les champs hérités de AbstractAuditingEntity.
+// Utiliser @SuperBuilder si un builder est nécessaire, sinon omettre.
 
-@Entity
-@Table(name = "staff")
+@AtaEntity(
+        table           = "staff",
+        responseExclude = {"password"},                         // exclure du ResponseDto
+        requestExclude  = {"id"},                               // exclure du RequestDto
+        baseUrl         = "/api/v1/staff"                       // URL du controller généré
+)
 @Getter
 @Setter
 @NoArgsConstructor
-public class Staff extends AbstractAuditingEntity {   // ← AbstractAuditingEntity d'ata-lib
+@Entity                                                         // obligatoire en direct (scanner JPA)
+public class Staff extends AbstractAuditingEntity {
+
+    @Column(name = "first_name", length = 100)
+    @NotBlank @Size(max = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    @NotBlank @Size(max = 100)
+    private String lastName;
+
+    @Column(unique = true, length = 150)
+    @Email @NotBlank
+    private String email;
+
+    @Column(length = 255)
+    private String password;
+}
+
+// =============================================================================
+// 3. CE QUI EST GÉNÉRÉ AUTOMATIQUEMENT (target/generated-sources/annotations/)
+// =============================================================================
+
+// StaffResponseDto.java — id + firstName + lastName + email (password exclu)
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class StaffResponseDto {
+    private Long id;
+    @NotBlank @Size(max = 100)  private String firstName;
+    @NotBlank @Size(max = 100)  private String lastName;
+    @Email @NotBlank            private String email;
+}
+
+// StaffRequestDto.java — firstName + lastName + email + password (id exclu)
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class StaffRequestDto {
+    @NotBlank @Size(max = 100)  private String firstName;
+    @NotBlank @Size(max = 100)  private String lastName;
+    @Email @NotBlank            private String email;
+    private String password;
+}
+
+// StaffMapper.java — interface MapStruct (MapStruct génère l'impl au round suivant)
+@Mapper(componentModel = "spring")
+public interface StaffMapper {
+    StaffResponseDto toDto(Staff entity);
+
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "deleted",   ignore = true)
+    @Mapping(target = "deletedBy", ignore = true)
+    Staff toEntity(StaffRequestDto dto);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "createdAt", ignore = true) /* ... autres champs d'audit ... */
+    void updateEntity(@MappingTarget Staff entity, StaffRequestDto dto);
+}
+
+// StaffRepository.java
+@Repository
+public interface StaffRepository extends JpaRepository<Staff, Long> {
+    List<Staff> findAllByDeletedFalse();
+}
+
+// StaffServiceImpl.java — Spring bean @Service + @Transactional via @AtaService
+@AtaService
+public class StaffServiceImpl
+        extends AbstractGenericService<Staff, StaffRequestDto, StaffResponseDto, Long> {
+
+    public StaffServiceImpl(StaffRepository repository, StaffMapper mapper) {
+        super(repository, mapper::toEntity, mapper::toDto, mapper::updateEntity);
+    }
+
+    @Override
+    public List<StaffResponseDto> getAllWithoutPagination() {
+        return repository.findAllByDeletedFalse().stream().map(mapper::toDto).toList();
+    }
+}
+
+// StaffController.java — Spring bean @RestController @RequestMapping via @AtaController
+@AtaController("/api/v1/staff")
+public class StaffController
+        extends AbstractGenericController<StaffRequestDto, StaffResponseDto, Long> {
+
+    public StaffController(StaffServiceImpl service) {
+        super(service);
+    }
+}
+
+// RÉSULTAT : 5 endpoints REST disponibles sans rien écrire de plus :
+//   POST   /api/v1/staff        → create
+//   PUT    /api/v1/staff/{id}   → update
+//   GET    /api/v1/staff/{id}   → getById
+//   GET    /api/v1/staff        → getAll paginé
+//   DELETE /api/v1/staff/{id}   → soft delete
+
+// =============================================================================
+// 4. CUSTOMISATION — overrider uniquement ce qui change
+// =============================================================================
+
+// Logique métier custom dans le service :
+// Étendre StaffServiceImpl (généré) dans un package différent + @Primary
+// com.example.service.StaffService (pas com.example.domain)
+@Service
+@Primary
+public class StaffService extends StaffServiceImpl {
+
+    public StaffService(StaffRepository repository, StaffMapper mapper) {
+        super(repository, mapper);
+    }
+
+    @Override
+    protected void beforeCreate(StaffRequestDto dto) {
+        // valider l'unicité de l'email, hasher le password, etc.
+    }
+}
+
+// Sécurité sur les endpoints générés — configurer Spring Security globalement :
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.POST,   "/api/v1/staff").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.PUT,    "/api/v1/staff/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/v1/staff/**").hasRole("ADMIN")
+            .anyRequest().authenticated());
+        return http.build();
+    }
+}
+
+// Endpoints custom ou @SecuredCrud : écrire un controller manuel
+// (voir sections 8-9 ci-dessous — mode manuel)
+// Le controller généré (StaffController) doit être exclu du component scan.
+
+// =============================================================================
+// MODE MANUEL — sans le processor, écrire chaque couche (cf. sections 2-8 ci-dessous)
+// =============================================================================
+//
+// Utile quand :
+//   • l'entité a des types complexes (héritage multi-niveaux, discriminator, etc.)
+//   • les DTOs ont une structure très différente de l'entité
+//   • le service a une logique de pagination ou de filtrage très custom
+//
+// 5. ENTITÉ (mode manuel)
+// =============================================================================
+
+@Entity
+@Table(name = "staff")
+@Getter @Setter @NoArgsConstructor
+public class Staff extends AbstractAuditingEntity {
 
     @Column(name = "first_name", length = 100)
     private String firstName;
@@ -69,43 +217,27 @@ public class Staff extends AbstractAuditingEntity {   // ← AbstractAuditingEnt
     @Column(name = "last_name", length = 100)
     private String lastName;
 
-    @Column(name = "email", length = 150, unique = true)
+    @Column(unique = true, length = 150)
     private String email;
 }
 
-// Champs hérités automatiquement via AbstractAuditingEntity :
-//   id, createdAt, updatedAt, createdBy, updatedBy, deletedBy, deleted
-
 // =============================================================================
-// 4. DTOs — POJOs avec validation
+// 6. REPOSITORY (mode manuel)
 // =============================================================================
 
-public class StaffRequestDto {
-    @NotBlank @Size(max = 100) private String firstName;
-    @NotBlank @Size(max = 100) private String lastName;
-    @Email @NotBlank @Size(max = 150) private String email;
-    // getters / setters
-}
-
-public class StaffResponseDto {
-    private Long id;
-    private String firstName;
-    private String lastName;
-    private String email;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private String createdBy;
-    // getters / setters
+@Repository
+public interface StaffRepository extends JpaRepository<Staff, Long> {
+    Page<Staff> findAllByDeletedFalse(Pageable pageable);
+    List<Staff> findAllByDeletedFalse();
 }
 
 // =============================================================================
-// 5. MAPPER — @Mapper(componentModel = "spring") + ignorer les champs hérités
+// 7. MAPPER (mode manuel)
 // =============================================================================
 
 @Mapper(componentModel = "spring")
 public interface StaffMapper {
 
-    @Mapping(target = "id",        ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -114,10 +246,9 @@ public interface StaffMapper {
     @Mapping(target = "deleted",   ignore = true)
     Staff toEntity(StaffRequestDto dto);
 
-    StaffResponseDto toResponseDto(Staff staff);
+    StaffResponseDto toDto(Staff staff);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id",        ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -128,29 +259,15 @@ public interface StaffMapper {
 }
 
 // =============================================================================
-// 6. REPOSITORY — JpaRepository standard
+// 8. SERVICE (mode manuel)
 // =============================================================================
 
-@Repository
-public interface StaffRepository extends JpaRepository<Staff, Long> {
-    Page<Staff> findAllByDeletedFalse(Pageable pageable);
-}
-
-// =============================================================================
-// 7. SERVICE — @AtaService + extends AbstractGenericService
-// =============================================================================
-
-public interface StaffService
-        extends GenericService<StaffRequestDto, StaffResponseDto, Long> {
-}
-
-@AtaService                                        // ← @Service + @Transactional inclus
+@AtaService
 public class StaffServiceImpl
-        extends AbstractGenericService<Staff, StaffRequestDto, StaffResponseDto, Long>
-        implements StaffService {
+        extends AbstractGenericService<Staff, StaffRequestDto, StaffResponseDto, Long> {
 
     public StaffServiceImpl(StaffRepository repo, StaffMapper mapper) {
-        super(repo, mapper::toEntity, mapper::toResponseDto, mapper::updateEntity);
+        super(repo, mapper::toEntity, mapper::toDto, mapper::updateEntity);
     }
 
     @Override
@@ -160,52 +277,40 @@ public class StaffServiceImpl
 
     @Override
     public List<StaffResponseDto> getAllWithoutPagination() {
-        return repository.findAll().stream()
-                .filter(s -> !Boolean.TRUE.equals(s.getDeleted()))
-                .map(entityToDtoMapper)
-                .toList();
+        return ((StaffRepository) repository).findAllByDeletedFalse()
+                .stream().map(entityToDtoMapper).toList();
     }
 }
 
 // =============================================================================
-// 8. CONTRÔLEUR — @AtaController + extends AbstractGenericController + @SecuredCrud
+// 9. CONTRÔLEUR (mode manuel)
 // =============================================================================
 
-@AtaController("/api/v1/staff")                    // ← @RestController + @RequestMapping inclus
-@Tag(name = "Staff")
+@AtaController("/api/v1/staff")
 @SecuredCrud(
-    create = {"ADMIN"},
-    update = {"ADMIN"},
-    delete = {"ADMIN"}
-    // read et list : accessibles à tous les utilisateurs authentifiés (pas de restriction)
+        create = {"ADMIN"},
+        update = {"ADMIN"},
+        delete = {"ADMIN"}
 )
 public class StaffController
         extends AbstractGenericController<StaffRequestDto, StaffResponseDto, Long> {
 
-    public StaffController(StaffService service) {
+    public StaffController(StaffServiceImpl service) {
         super(service);
     }
 }
 
 // =============================================================================
-// RÉSULTAT : 8 fichiers, 0 boilerplate répété.
-// Les 5 endpoints REST sont disponibles automatiquement :
-//   POST   /api/v1/staff          → create   (ADMIN seulement)
-//   PUT    /api/v1/staff/{id}     → update   (ADMIN seulement)
-//   GET    /api/v1/staff/{id}     → getById
-//   GET    /api/v1/staff?page=0   → getAll paginé
-//   DELETE /api/v1/staff/{id}     → soft delete (ADMIN seulement)
-//
-// ANNOTATIONS ata-lib disponibles :
-//   @AtaService    = @Service + @Transactional
-//   @AtaController = @RestController + @RequestMapping
-//   @SecuredCrud   = sécurité déclarative par rôles / permissions
-//   @AtaEntity     = @Entity + @EntityListeners (sucre syntaxique, @Entity reste obligatoire)
-//
-// LIQUIBASE — champs à ajouter dans votre changelog :
-//   id BIGINT PK AUTOINCREMENT
-//   first_name, last_name, email (champs métier)
-//   created_at, updated_at TIMESTAMP
-//   created_by, updated_by, deleted_by VARCHAR(50)
-//   deleted BOOLEAN DEFAULT FALSE NOT NULL
+// LIQUIBASE — champs à inclure dans votre changelog
+// =============================================================================
+//   id            BIGINT PRIMARY KEY AUTO_INCREMENT
+//   first_name    VARCHAR(100)
+//   last_name     VARCHAR(100)
+//   email         VARCHAR(150) UNIQUE
+//   created_at    TIMESTAMP
+//   updated_at    TIMESTAMP
+//   created_by    VARCHAR(50)
+//   updated_by    VARCHAR(50)
+//   deleted_by    VARCHAR(50)
+//   deleted       BOOLEAN NOT NULL DEFAULT FALSE
 // =============================================================================
