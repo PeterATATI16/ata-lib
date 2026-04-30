@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.atalib</groupId>
+        <artifactId>ata-lib-parent</artifactId>
+        <version>1.1.0</version>
+    </parent>
+
+    <artifactId>ata-lib-processor</artifactId>
+    <name>ata-lib :: Processor</name>
+    <description>Annotation processor: generates CRUD boilerplate (DTOs, Mapper, Repository, Service, Controller) from @AtaEntity</description>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Disable annotation processing to avoid circular self-processing -->
+                    <proc>none</proc>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
