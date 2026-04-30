@@ -12,7 +12,6 @@ public class EntityModel {
 
     private final String className;
     private final String packageName;
-    private final String tableName;
     private final String baseUrl;
     private final List<FieldModel> fields;
     private final Set<String> responseExclude;
@@ -20,12 +19,11 @@ public class EntityModel {
     private final String idTypeName;
     private final List<String> idTypeImports;
 
-    public EntityModel(String className, String packageName, String tableName, String baseUrl,
+    public EntityModel(String className, String packageName, String baseUrl,
                        List<FieldModel> fields, Set<String> responseExclude, Set<String> requestExclude,
                        String idTypeName, List<String> idTypeImports) {
         this.className = className;
         this.packageName = packageName;
-        this.tableName = tableName;
         this.baseUrl = baseUrl;
         this.fields = fields;
         this.responseExclude = responseExclude;
@@ -69,7 +67,6 @@ public class EntityModel {
 
     public String getClassName()      { return className; }
     public String getPackageName()    { return packageName; }
-    public String getTableName()      { return tableName; }
     public String getBaseUrl()        { return baseUrl; }
     public List<FieldModel> getFields() { return fields; }
     public String getIdTypeName()     { return idTypeName; }

@@ -62,7 +62,6 @@ public class AtaEntityProcessor extends AbstractProcessor {
         // Read @AtaEntity attribute values via AnnotationMirror (avoids loading AtaEntity.class)
         Map<String, Object> attrValues = readAnnotationValues(typeElement, "io.atalib.annotation.AtaEntity");
 
-        String table   = (String) attrValues.getOrDefault("table", "");
         String baseUrl = (String) attrValues.getOrDefault("baseUrl", "");
         @SuppressWarnings("unchecked")
         List<String> responseExcludeList = (List<String>) attrValues.getOrDefault("responseExclude", List.of());
@@ -73,7 +72,6 @@ public class AtaEntityProcessor extends AbstractProcessor {
         String idTypeFqn = detectIdTypeFqn(typeElement);
         TypeUtils.TypeResolution idTypeRes = TypeUtils.resolve(idTypeFqn);
 
-        if (table.isBlank())   table   = TypeUtils.toSnakeCase(className);
         if (baseUrl.isBlank()) baseUrl = "/" + className.toLowerCase();
 
         Set<String> responseExclude = new HashSet<>(responseExcludeList);
@@ -81,7 +79,7 @@ public class AtaEntityProcessor extends AbstractProcessor {
 
         List<FieldModel> fields = buildFields(typeElement);
 
-        return new EntityModel(className, packageName, table, baseUrl, fields, responseExclude, requestExclude,
+        return new EntityModel(className, packageName, baseUrl, fields, responseExclude, requestExclude,
                 idTypeRes.displayName, new ArrayList<>(idTypeRes.imports));
     }
 
