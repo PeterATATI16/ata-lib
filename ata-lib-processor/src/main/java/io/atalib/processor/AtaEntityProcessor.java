@@ -5,6 +5,7 @@ import io.atalib.processor.gen.*;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -68,8 +69,8 @@ public class AtaEntityProcessor extends AbstractProcessor {
         @SuppressWarnings("unchecked")
         List<String> requestExcludeList  = (List<String>) attrValues.getOrDefault("requestExclude", List.of());
 
-        // idType is a Class<?> attribute — APT returns it as a TypeMirror whose toString() gives the FQN
-        String idTypeFqn = attrValues.getOrDefault("idType", "java.lang.Long").toString();
+        // Auto-detect the @Id field type by walking the entity's class hierarchy
+        String idTypeFqn = detectIdTypeFqn(typeElement);
         TypeUtils.TypeResolution idTypeRes = TypeUtils.resolve(idTypeFqn);
 
         if (table.isBlank())   table   = TypeUtils.toSnakeCase(className);
@@ -132,6 +133,32 @@ public class AtaEntityProcessor extends AbstractProcessor {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Walks the class hierarchy to find the field annotated with @Id and returns its type FQN.
+     * Falls back to "java.lang.Long" if not found.
+     */
+    private String detectIdTypeFqn(TypeElement typeElement) {
+        TypeElement current = typeElement;
+        while (current != null) {
+            for (Element enclosed : current.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.FIELD) continue;
+                VariableElement field = (VariableElement) enclosed;
+                boolean isId = field.getAnnotationMirrors().stream()
+                        .anyMatch(m -> m.getAnnotationType().toString().equals("jakarta.persistence.Id"));
+                if (isId) {
+                    return field.asType().toString();
+                }
+            }
+            TypeMirror superMirror = current.getSuperclass();
+            if (superMirror == null || superMirror.getKind() == TypeKind.NONE) break;
+            Element superElement = processingEnv.getTypeUtils().asElement(superMirror);
+            if (!(superElement instanceof TypeElement)) break;
+            current = (TypeElement) superElement;
+            if ("java.lang.Object".equals(current.getQualifiedName().toString())) break;
+        }
+        return "java.lang.Long";
+    }
 
     /**
      * Reads annotation element values by FQN without loading the annotation class.
