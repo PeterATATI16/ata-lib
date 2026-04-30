@@ -28,7 +28,7 @@ Consumers choose one: `starter` for new projects (zero-config), `core` for exist
 
 | Layer | Key Type | Package |
 |-------|----------|---------|
-| Domain | `AbstractAuditingEntity` | `io.atalib.domain` |
+| Domain | `AbstractAuditingBase`, `AbstractAuditingEntity`, `AbstractUuidAuditingEntity` | `io.atalib.domain` |
 | Mapping | `EntityMapper<D,E>` | `io.atalib.mapper` |
 | Service | `AbstractGenericService<E,REQ,RES,ID>` | `io.atalib.service` |
 | Controller | `AbstractGenericController<REQ,RES,ID>` | `io.atalib.controller` |
@@ -43,7 +43,9 @@ Consumers choose one: `starter` for new projects (zero-config), `core` for exist
 
 **AOP Security** — `CrudSecurityAspect` intercepts controller methods via `@Before` pointcuts, checking `@SecuredCrud` attributes (roles and permissions are OR'd). No authorization logic leaks into business code.
 
-**Soft Delete** — `AbstractAuditingEntity` has a `deleted` (Boolean, default false) field and a `softDelete()` method. Services call this instead of physical deletion. Consuming projects must filter `deleted=false` in queries (e.g., `findAllByDeletedFalse()`).
+**Soft Delete** — `AbstractAuditingBase` has a `deleted` (Boolean, default false) field and a `softDelete()` method. Services call this instead of physical deletion. Consuming projects must filter `deleted=false` in queries (e.g., `findAllByDeletedFalse()`).
+
+**Domain hierarchy** — `AbstractAuditingBase` holds all audit fields and lifecycle hooks (`@PrePersist`, `@PreUpdate`, `@PreRemove`, `softDelete()`). Two concrete base classes extend it: `AbstractAuditingEntity` (adds `@Id Long id` with `IDENTITY` generation) and `AbstractUuidAuditingEntity` (adds `@Id UUID id` with `UUID` generation). Entities extend whichever matches their ID strategy. `AbstractGenericService.delete()` checks `instanceof AbstractAuditingBase` to support both.
 
 **Auditing** — `@CreatedDate`, `@LastModifiedDate`, `createdBy`, `updatedBy`, `deletedBy` are populated automatically via `AuditingEntityListener` + `SecurityContextHolder` (falls back to `"SYSTEM"`).
 
