@@ -1,6 +1,6 @@
 # ata-lib — Spécification Technique et Fonctionnelle
 
-**Version** : 1.0.1  
+**Version** : 1.2.0  
 **Stack** : Java 17 · Spring Boot 3.3+ · Spring Data JPA · MapStruct · Lombok  
 **Dépôt** : https://github.com/PeterATATI16/ata-lib
 
@@ -8,9 +8,14 @@
 
 ## 1. Objectif
 
-ata-lib est une librairie Java extractant les patterns CRUD génériques communs à tous les microservices Spring Boot du projet. Elle élimine le boilerplate répété (entité auditée, service CRUD, contrôleur REST, sécurité déclarative) en fournissant des classes abstraites et des annotations composées réutilisables.
+ata-lib est une librairie Java extractant les patterns CRUD génériques communs à tous les microservices Spring Boot. Elle élimine le boilerplate répété en fournissant :
 
-**Problème résolu** : sans ata-lib, chaque nouveau microservice réimplémente les mêmes ~300 lignes de code (GenericService, AbstractGenericService, AbstractGenericController, CrudSecurityAspect, BaseEntity) avec les mêmes risques d'incohérence.
+- Des classes abstraites et annotations composées réutilisables (`ata-lib-core`)
+- Une auto-configuration Spring Boot optionnelle (`ata-lib-spring-boot-starter`)
+- Un processeur d'annotation compile-time qui génère automatiquement tous les fichiers companion d'une entité (`ata-lib-processor`)
+
+**Avant** : chaque nouveau microservice réimplémentait ~300 lignes (entité, DTOs, mapper, repository, service, contrôleur).  
+**Après** : une entité annotée `@AtaEntity` génère les 6 fichiers automatiquement à la compilation.
 
 ---
 
@@ -22,6 +27,11 @@ ata-lib-parent (POM)
 │   Contient toutes les abstractions sans aucune auto-configuration.
 │   Utilisable dans tout projet Spring Boot existant.
 │
+├── ata-lib-processor
+│   Processeur d'annotation (APT) déclenché par @AtaEntity.
+│   Génère : ResponseDto, RequestDto, Mapper, Repository, ServiceImpl, Controller.
+│   Aucune dépendance Spring requise — utilise uniquement les APIs javax.lang.model.
+│
 └── ata-lib-spring-boot-starter
     Dépend de ata-lib-core.
     Active automatiquement JPA Auditing, AspectJ et CrudSecurityAspect
@@ -32,15 +42,23 @@ ata-lib-parent (POM)
 
 | Dépendance | Scope | Motif |
 |---|---|---|
-| spring-boot-starter-data-jpa | compile | AbstractAuditingEntity, JpaRepository |
+| spring-boot-starter-data-jpa | compile | AbstractAuditingBase, JpaRepository |
 | spring-boot-starter-web | compile | AbstractGenericController |
 | spring-boot-starter-validation | compile | @Valid sur les endpoints |
 | spring-boot-starter-aop | compile | CrudSecurityAspect |
 | spring-boot-starter-security | **optional** | CrudSecurityAspect (pas chargé si absent) |
-| mapstruct | compile | Annotations @Mapper sur StaffMapper |
-| lombok | **optional** | AbstractAuditingEntity uniquement |
+| mapstruct | compile | Annotations @Mapper |
+| lombok | **optional** | Classes de domaine uniquement |
 
-### 2.2 Dépendances de ata-lib-spring-boot-starter
+### 2.2 Dépendances de ata-lib-processor
+
+| Dépendance | Scope | Motif |
+|---|---|---|
+| *(aucune)* | — | Uniquement les APIs JDK standard (javax.annotation.processing, javax.lang.model) |
+
+Le processeur est déclaré en `annotationProcessorPaths` dans le projet consommateur — il n'entre pas dans le classpath de runtime.
+
+### 2.3 Dépendances de ata-lib-spring-boot-starter
 
 | Dépendance | Scope | Motif |
 |---|---|---|
@@ -51,18 +69,24 @@ ata-lib-parent (POM)
 
 ## 3. Composants — Spécification fonctionnelle
 
-### 3.1 AbstractAuditingEntity
+### 3.1 Hiérarchie de domaine
 
-**Package** : `io.atalib.domain`  
-**Type** : `@MappedSuperclass` abstract  
+**Package** : `io.atalib.domain`
 
-Classe de base pour toutes les entités JPA du projet. Fournit l'identifiant, les champs d'audit et le mécanisme de soft delete.
+```
+AbstractAuditingBase         @MappedSuperclass — audit fields + lifecycle hooks
+    ├── AbstractAuditingEntity        @MappedSuperclass — @Id Long id, GenerationType.IDENTITY
+    └── AbstractUuidAuditingEntity    @MappedSuperclass — @Id UUID id, GenerationType.UUID
+```
+
+#### AbstractAuditingBase
+
+Classe de base commune. Ne déclare pas de clé primaire.
 
 **Champs**
 
 | Champ | Type | Colonne | Description |
 |---|---|---|---|
-| `id` | `Long` | `id` | Clé primaire auto-incrémentée |
 | `createdAt` | `LocalDateTime` | `created_at` | Date de création (non modifiable) |
 | `updatedAt` | `LocalDateTime` | `updated_at` | Date de dernière modification |
 | `createdBy` | `String` | `created_by` | Login de l'auteur de création |
@@ -78,10 +102,19 @@ Classe de base pour toutes les entités JPA du projet. Fournit l'identifiant, le
 | `@PreUpdate` | Avant UPDATE | Met à jour updatedAt, updatedBy. Appelle `beforePersist()`. |
 | `@PreRemove` | Avant DELETE physique | Marque deleted=true, renseigne deletedBy. |
 
-**Méthode `softDelete()`** : positionne deleted=true, deletedBy et updatedAt sans supprimer la ligne.  
-**Hook `beforePersist()`** : méthode vide overridable dans les entités filles pour logique custom avant sauvegarde.
+**`softDelete()`** : positionne deleted=true, deletedBy et updatedAt sans supprimer la ligne.  
+**`beforePersist()`** : méthode vide overridable dans les entités filles.
 
-**Métamodèle JPA** : `AbstractAuditingEntity_` est inclus dans ata-lib-core pour permettre la génération du métamodèle des entités filles par `hibernate-jpamodelgen`.
+#### AbstractAuditingEntity
+
+Étend `AbstractAuditingBase`. Ajoute `@Id Long id` avec `GenerationType.IDENTITY`.  
+À utiliser pour les entités avec clé primaire auto-incrémentée.
+
+#### AbstractUuidAuditingEntity
+
+Étend `AbstractAuditingBase`. Ajoute `@Id UUID id` avec `GenerationType.UUID`.  
+À utiliser pour les entités avec clé primaire UUID générée par la base.  
+Requiert PostgreSQL 9.4+ ou toute base supportant `gen_random_uuid()`.
 
 ---
 
@@ -90,16 +123,14 @@ Classe de base pour toutes les entités JPA du projet. Fournit l'identifiant, le
 **Package** : `io.atalib.service`  
 **Type** : interface
 
-Contrat de service CRUD générique.
-
 | Méthode | Signature | Description |
 |---|---|---|
-| `create` | `RES create(REQ dto)` | Crée une entité à partir du DTO |
-| `update` | `RES update(ID id, REQ dto)` | Met à jour partiellement une entité |
-| `get` | `RES get(ID id)` | Récupère une entité par ID |
+| `create` | `RES create(REQ dto)` | Crée une entité |
+| `update` | `RES update(ID id, REQ dto)` | Met à jour partiellement |
+| `get` | `RES get(ID id)` | Récupère par ID |
 | `getAll` | `Page<RES> getAll(Pageable p)` | Liste paginée |
-| `delete` | `void delete(ID id)` | Suppression (soft si extends AbstractAuditingEntity) |
-| `getAllWithoutPagination` | `List<RES> getAllWithoutPagination()` | Liste complète sans pagination — **à implémenter** |
+| `delete` | `void delete(ID id)` | Suppression (soft si extends AbstractAuditingBase) |
+| `getAllWithoutPagination` | `List<RES> getAllWithoutPagination()` | Liste complète — implémentée dans le ServiceImpl généré |
 
 ---
 
@@ -108,7 +139,7 @@ Contrat de service CRUD générique.
 **Package** : `io.atalib.service`  
 **Type** : abstract class implements GenericService
 
-Implémentation CRUD avec pattern Template Method. Injecte les fonctions mapper via constructeur pour éviter la dépendance directe à MapStruct.
+Implémentation CRUD avec pattern Template Method. Injecte les fonctions mapper via constructeur.
 
 **Constructeur**
 
@@ -121,19 +152,30 @@ protected AbstractGenericService(
 )
 ```
 
-**Comportement de `delete()`** : si l'entité est une instance de `AbstractAuditingEntity`, appelle `softDelete()` puis sauvegarde. Sinon, suppression physique (`repository.delete()`).
+**Comportement de `delete()`** : si l'entité est une `AbstractAuditingBase`, appelle `softDelete()` puis sauvegarde. Sinon, suppression physique.
 
-**`fetchEntities(Pageable)`** : retourne par défaut toutes les entités triées par `updatedAt DESC`. Override pour filtrer (ex: `findAllByDeletedFalse`).
+**`fetchEntities(Pageable)`** : retourne toutes les entités triées par `updatedAt DESC`. Override pour filtrer.
 
-**Hooks lifecycle disponibles**
+**Flux des hooks lifecycle**
 
 ```
-beforeCreate → afterMapping → [save] → afterCreate
-beforeUpdate → afterUpdateMapping → [save] → afterUpdate
-beforeDelete → [delete] → afterDelete
+POST   → beforeCreate → [map DTO → entity] → afterMapping → [save] → afterCreate
+PUT    → beforeUpdate → [charger entity] → [map DTO → entity] → afterUpdateMapping → [save] → afterUpdate
+DELETE → beforeDelete → [softDelete] → afterDelete
 ```
 
-**`getAllWithoutPagination()`** : méthode abstraite — doit être implémentée dans chaque `ServiceImpl`.
+**Hooks disponibles**
+
+| Hook | Paramètres | Quand |
+|---|---|---|
+| `beforeCreate` | `REQUEST_DTO dto` | Avant le mapping DTO → entity |
+| `afterMapping` | `ENTITY entity, REQUEST_DTO dto` | Après le mapping, avant le save |
+| `afterCreate` | `ENTITY entity, REQUEST_DTO dto` | Après le save |
+| `beforeUpdate` | `ID id, REQUEST_DTO dto` | Avant le chargement de l'entité |
+| `afterUpdateMapping` | `ENTITY entity, REQUEST_DTO dto` | Après le mapping partiel, avant le save |
+| `afterUpdate` | `ENTITY entity, REQUEST_DTO dto` | Après le save |
+| `beforeDelete` | `ID id` | Avant le soft delete |
+| `afterDelete` | `ID id` | Après le soft delete |
 
 ---
 
@@ -141,8 +183,6 @@ beforeDelete → [delete] → afterDelete
 
 **Package** : `io.atalib.controller`  
 **Type** : abstract class
-
-Expose les 5 endpoints REST standard. Délègue au `GenericService`.
 
 | HTTP | Path | Méthode service | Code retour |
 |---|---|---|---|
@@ -152,7 +192,7 @@ Expose les 5 endpoints REST standard. Délègue au `GenericService`.
 | GET | `/` | `service.getAll(pageable)` | 200 OK |
 | DELETE | `/{id}` | `service.delete(id)` | 204 No Content |
 
-`@Valid` appliqué sur les méthodes POST et PUT — les contraintes des DTOs (`@NotBlank`, `@Email`, etc.) sont validées automatiquement.
+`@Valid` appliqué sur POST et PUT.
 
 ---
 
@@ -161,53 +201,28 @@ Expose les 5 endpoints REST standard. Délègue au `GenericService`.
 **Package** : `io.atalib.security`  
 **Type** : annotation (`@Target(TYPE)`)
 
-Annotation déclarative de sécurité CRUD. Placée sur un contrôleur, elle contrôle l'accès aux 5 endpoints par rôles et/ou permissions.
+Annotation déclarative de sécurité CRUD. À placer sur le contrôleur.
 
-**Attributs**
+| Attribut | Description |
+|---|---|
+| `create[]` / `createPermissions[]` | Rôles / permissions pour POST |
+| `update[]` / `updatePermissions[]` | Rôles / permissions pour PUT |
+| `read[]` / `readPermissions[]` | Rôles / permissions pour GET/{id} |
+| `list[]` / `listPermissions[]` | Rôles / permissions pour GET (liste) |
+| `delete[]` / `deletePermissions[]` | Rôles / permissions pour DELETE |
 
-| Attribut | Description | Exemple |
-|---|---|---|
-| `create[]` | Rôles autorisés pour POST | `{"ADMIN"}` |
-| `createPermissions[]` | Permissions pour POST | `{"CREER_STAFF"}` |
-| `update[]` | Rôles pour PUT | `{"ADMIN", "MANAGER"}` |
-| `updatePermissions[]` | Permissions pour PUT | `{"MODIFIER_STAFF"}` |
-| `read[]` | Rôles pour GET/{id} | |
-| `readPermissions[]` | Permissions pour GET/{id} | |
-| `list[]` | Rôles pour GET (liste) | |
-| `listPermissions[]` | Permissions pour GET (liste) | |
-| `delete[]` | Rôles pour DELETE | `{"ADMIN"}` |
-| `deletePermissions[]` | Permissions pour DELETE | |
-
-**Règle de vérification** (dans CrudSecurityAspect) :
-- Si l'attribut est vide → accès non restreint pour cette opération
-- Rôles vérifiés avec le préfixe `ROLE_` automatiquement ajouté
-- Permissions vérifiées directement sur `getAuthority()`
-- Si rôles ET permissions sont définis → l'utilisateur doit satisfaire **au moins un** des deux
+**Règle** : attribut vide = accès non restreint. Rôles et permissions sont évalués en OR.
 
 ---
 
 ### 3.6 CrudSecurityAspect
 
 **Package** : `io.atalib.security`  
-**Type** : `@Aspect` (pas de `@Component` — enregistré via configuration)
+**Type** : `@Aspect`
 
-Intercepte les méthodes de `AbstractGenericController` avant exécution. Lit l'annotation `@SecuredCrud` sur la classe contrôleur et vérifie les droits via `SecurityContextHolder`.
+Intercepte les méthodes de `AbstractGenericController` via `@Before` pointcuts. Lit `@SecuredCrud` et vérifie les droits via `SecurityContextHolder`. Lève `AccessDeniedException` si les contraintes ne sont pas satisfaites.
 
-**Pointcuts**
-
-| Pointcut | Méthode interceptée |
-|---|---|
-| `@Before create` | `AbstractGenericController.create()` |
-| `@Before update` | `AbstractGenericController.update()` |
-| `@Before getById` | `AbstractGenericController.getById()` |
-| `@Before getAll` | `AbstractGenericController.getAll()` |
-| `@Before delete` | `AbstractGenericController.delete()` |
-
-**Comportement** : lève `AccessDeniedException` si l'utilisateur ne satisfait pas les contraintes. Si `SecurityContextHolder` n'a pas d'authentification active, lève également `AccessDeniedException`.
-
-**Activation** :
-- Via starter : bean créé automatiquement si `spring-security-core` est sur le classpath (`@ConditionalOnClass`)
-- Via core seul : bean à déclarer manuellement dans une `@Configuration`
+**Activation** : automatique via starter (si Spring Security sur le classpath) ou bean manuel via `@Configuration`.
 
 ---
 
@@ -215,27 +230,62 @@ Intercepte les méthodes de `AbstractGenericController` avant exécution. Lit l'
 
 **Package** : `io.atalib.annotation`
 
-| Annotation | Compose | Mécanisme | Fonctionne ? |
+| Annotation | Compose |
+|---|---|
+| `@AtaEntity(responseExclude, requestExclude, baseUrl)` | `@Entity + @EntityListeners(AuditingEntityListener.class)` + déclenche le processor |
+| `@AtaService` | `@Service + @Transactional` |
+| `@AtaController(value/path)` | `@RestController + @RequestMapping` |
+
+**Attributs de @AtaEntity**
+
+| Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `@AtaService` | `@Service + @Transactional` | Spring meta-annotation (runtime) | ✅ |
-| `@AtaController(value/path)` | `@RestController + @RequestMapping` avec `@AliasFor` | Spring meta-annotation (runtime) | ✅ |
-| `@AtaEntity` | `@Entity + @EntityListeners(AuditingEntityListener.class)` | Spring/Hibernate meta-annotation | ⚠️ voir limitations |
-| `@AtaMapper` | `@Mapper(componentModel = "spring")` | APT (compile-time) | ⚠️ voir limitations |
+| `responseExclude` | `String[]` | `{}` | Champs à exclure du ResponseDto (champs d'audit toujours exclus) |
+| `requestExclude` | `String[]` | `{}` | Champs à exclure du RequestDto (id + champs d'audit toujours exclus) |
+| `baseUrl` | `String` | `/{nomEntitéMinuscules}` | Base URL du contrôleur généré |
+
+**Note** : le nom de la table SQL est contrôlé par `@jakarta.persistence.Table(name = "...")`, pas par ata-lib. Obligatoire si le nom de la classe est un mot réservé SQL (`user`, `order`, `group`...).
+
+---
+
+### 3.8 AtaEntityProcessor
+
+**Package** : `io.atalib.processor`  
+**Type** : `AbstractProcessor` (APT standard Java)  
+**Déclenché par** : `@AtaEntity` sur une classe
+
+Génère 6 fichiers source dans le même package que l'entité, lors de la compilation (round 1 de l'APT). MapStruct traite l'interface mapper générée au round suivant.
+
+**Fichiers générés**
+
+| Fichier | Contenu |
+|---|---|
+| `{Entity}ResponseDto` | Champs de l'entité + `id`, hors `responseExclude` et champs d'audit |
+| `{Entity}RequestDto` | Champs de l'entité, hors `requestExclude`, `id` et champs d'audit |
+| `{Entity}Mapper` | Interface `@Mapper(componentModel = "spring")` avec `toDto`, `toEntity`, `updateEntity` |
+| `{Entity}Repository` | `JpaRepository<Entity, ID>` + `findAllByDeletedFalse(Pageable)` + `findAllByDeletedFalse()` |
+| `{Entity}ServiceImpl` | Extends `AbstractGenericService`, `@AtaService`, override de `fetchEntities` et `getAllWithoutPagination` |
+| `{Entity}Controller` | Extends `AbstractGenericController`, `@AtaController(baseUrl)`, overrides explicites pour `getById`, `update`, `delete` |
+
+**Détection du type d'ID** : le processeur parcourt la hiérarchie de la classe via `processingEnv.getTypeUtils()` pour trouver le champ annoté `@jakarta.persistence.Id` et lire son type. Retourne `Long` par défaut si aucun champ `@Id` n'est trouvé.
+
+**DTOs avec getters/setters explicites** : les DTOs générés n'utilisent pas Lombok. Getters, setters, constructeur sans arguments et constructeur complet sont générés directement dans le source, pour garantir que MapStruct les voit dès le premier round APT.
+
+**Mirroring des annotations** : les annotations de validation (`@NotBlank`, `@Email`, `@Size`, etc.) présentes sur les champs de l'entité sont automatiquement copiées sur les DTOs générés. Les annotations JPA (`jakarta.persistence.*`), Lombok et Spring Data sont exclues.
+
+**Champs d'audit ignorés dans le Mapper** : `createdAt`, `updatedAt`, `createdBy`, `updatedBy`, `deleted`, `deletedBy`.
 
 ---
 
 ## 4. Starter — Auto-configuration
 
-**Classe** : `io.atalib.autoconfigure.AtaLibAutoConfiguration`  
-**Fichier de déclaration** : `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-
-Active automatiquement :
+**Classe** : `io.atalib.autoconfigure.AtaLibAutoConfiguration`
 
 | Configuration | Condition |
 |---|---|
-| `@EnableJpaAuditing` | Toujours (nécessaire pour `@CreatedDate` / `@LastModifiedDate`) |
-| `@EnableAspectJAutoProxy` | Toujours (nécessaire pour CrudSecurityAspect) |
-| Bean `CrudSecurityAspect` | Seulement si `org.springframework.security.core.Authentication` est sur le classpath |
+| `@EnableJpaAuditing` | Toujours |
+| `@EnableAspectJAutoProxy` | Toujours |
+| Bean `CrudSecurityAspect` | Si `spring-security-core` est sur le classpath |
 
 ---
 
@@ -243,75 +293,46 @@ Active automatiquement :
 
 ### Utiliser `ata-lib-spring-boot-starter` si
 
-- Le projet est créé **from scratch** (sans configuration JPA/AOP préexistante)
-- Aucune classe n'est annotée `@EnableJpaAuditing` dans le projet
-- Aucune classe n'est annotée `@EnableAspectJAutoProxy` dans le projet
-- L'objectif est le minimum de configuration
+- Projet créé from scratch sans configuration JPA/AOP préexistante
+- Aucune classe annotée `@EnableJpaAuditing` dans le projet
 
 ### Utiliser `ata-lib-core` seul si
 
-- Le projet est **JHipster v8** (a son propre `DatabaseConfiguration` avec `@EnableJpaAuditing`)
-- Le projet a déjà une configuration `@EnableJpaAuditing(auditorAwareRef = "...")` — ajouter le starter provoquerait un conflit de bean `JpaAuditingRegistrar`
-- Le projet a déjà `@EnableAspectJAutoProxy` déclaré
-- L'équipe veut un contrôle explicite sur les beans Spring enregistrés
-
-### Configuration complémentaire requise avec core seul
-
-```java
-// 1. Bean CrudSecurityAspect (si @SecuredCrud est utilisé)
-@Configuration
-public class AtaLibConfiguration {
-    @Bean
-    public CrudSecurityAspect crudSecurityAspect() {
-        return new CrudSecurityAspect();
-    }
-}
-
-// 2. Étendre @EntityScan
-@EntityScan(basePackages = { "packages.existants", "com.yourapp.domain" })
-
-// 3. Étendre @EnableJpaRepositories
-@EnableJpaRepositories({ "repositories.existantes", "com.yourapp.repository" })
-```
+- Projet JHipster v8 (possède son propre `DatabaseConfiguration`)
+- Projet avec `@EnableJpaAuditing(auditorAwareRef = "...")` déjà déclaré
+- Contrôle explicite sur les beans Spring souhaité
 
 ---
 
 ## 6. Limitations connues
 
-### 6.1 Lombok et méta-annotations
+### 6.1 `@Entity` doit être direct
 
-Lombok traite ses annotations (`@Getter`, `@Setter`, `@Builder`, etc.) uniquement lorsqu'elles sont **directement** sur l'élément cible. L'annotation processor Lombok utilise `roundEnv.getElementsAnnotatedWith(Getter.class)` qui n'explore pas les méta-annotations.
+Spring Boot's entity scanner utilise `AnnotationTypeFilter(Entity.class, false)` — le paramètre `false` désactive la recherche via méta-annotations. `@Entity` doit être présent directement sur la classe entité, en plus de `@AtaEntity`.
 
-**Conséquence** : `@AtaEntity` ne peut pas inclure `@Getter @Setter` de façon transparente. Ces annotations restent obligatoires directement sur la classe entité.
+### 6.2 Lombok ne suit pas les méta-annotations
 
-**Contournement futur** : module `ata-lib-processor` (APT) qui génèrerait le code via manipulation de l'AST au moment de la compilation — identique au fonctionnement interne de Lombok.
+`@Getter`, `@Setter`, etc. doivent être placés directement sur la classe entité.
 
-### 6.2 MapStruct et méta-annotations
+### 6.3 `@Builder` conflicte avec les champs hérités
 
-MapStruct's annotation processor utilise `roundEnv.getElementsAnnotatedWith(Mapper.class)`. Seules les interfaces annotées **directement** avec `@Mapper` sont détectées.
+Lombok `@Builder` ne génère pas de builder pour les champs hérités. Utiliser `@Getter @Setter @NoArgsConstructor` sur les entités. Si un builder est requis, utiliser `@SuperBuilder` (nécessite `@SuperBuilder` sur la classe de base également).
 
-**Conséquence** : `@AtaMapper` est déclaré dans la librairie mais MapStruct ne génère pas l'implémentation si on l'utilise seul. Utiliser `@Mapper(componentModel = "spring")` directement.
+### 6.4 Mots réservés SQL
 
-### 6.3 @Entity et entity scan
-
-`LocalContainerEntityManagerFactoryBean` (Spring) utilise `AnnotationTypeFilter(Entity.class, false)` — le paramètre `false` désactive la recherche via méta-annotations.
-
-**Conséquence** : `@AtaEntity` seul ne suffit pas pour qu'Hibernate détecte l'entité. `@Entity` doit être présent directement sur la classe.
-
-### 6.4 @Builder sur les entités JPA
-
-Lombok's `@Builder` sur une sous-classe génère un builder uniquement pour les champs propres à cette classe (pas les champs hérités). MapStruct détecte le builder et tente d'y accéder, ce qui provoque une erreur de compilation pour les champs hérités (`Unknown property "id" in StaffBuilder`).
-
-**Solution** : ne pas utiliser `@Builder` sur les entités JPA. Utiliser `@Getter @Setter @NoArgsConstructor` uniquement. Si un builder est nécessaire, utiliser `@SuperBuilder` de Lombok (implique d'annoter aussi `AbstractAuditingEntity` avec `@SuperBuilder`).
+`user`, `order`, `group` et d'autres mots réservés PostgreSQL nécessitent `@Table(name = "users")` sur la classe entité. Sans ça, Hibernate génère un DDL invalide au démarrage.
 
 ---
 
 ## 7. Évolutions prévues
 
-| Évolution | Description | Complexité |
+| Évolution | Statut | Description |
 |---|---|---|
-| `ata-lib-processor` | Module APT qui génère `extends AbstractAuditingEntity` à la compilation via `@AtaEntity` | Haute |
-| `@SuperBuilder` sur AbstractAuditingEntity | Permet d'utiliser `@SuperBuilder` sur les entités filles | Faible |
-| Support `UUID` comme ID | Paramétrer le type d'ID dans AbstractAuditingEntity | Faible |
-| `BaseFilter` générique | Classe de filtre de recherche avec `Specification<E>` | Moyenne |
-| Support multi-tenant | Champ `tenantId` dans AbstractAuditingEntity + filtre automatique | Haute |
+| `ata-lib-processor` — génération compile-time | ✅ Réalisé | Génération de 6 fichiers via `@AtaEntity` |
+| Support UUID comme type d'ID | ✅ Réalisé | `AbstractUuidAuditingEntity` + détection automatique du type `@Id` |
+| Getters/setters explicites dans les DTOs | ✅ Réalisé | Résout le conflit d'ordre APT Lombok/MapStruct |
+| Overrides explicites dans le Controller généré | ✅ Réalisé | Résout la résolution de type générique dans SpringDoc/Swagger |
+| Spring Security optionnelle | ✅ Réalisé | `AuditUtils` détecte la présence sur le classpath via `Class.forName` |
+| `BaseFilter` générique | En attente | Classe de filtre avec `Specification<E>` |
+| Support multi-tenant | En attente | Champ `tenantId` + filtre automatique |
+| Suppression du `extends AbstractAuditingEntity` manuel (Phase 3) | En attente | Manipulation AST style Lombok |

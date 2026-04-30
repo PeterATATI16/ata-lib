@@ -1,6 +1,6 @@
 package io.atalib.service;
 
-import io.atalib.domain.AbstractAuditingEntity;
+import io.atalib.domain.AbstractAuditingBase;
 import io.atalib.exception.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -92,7 +92,7 @@ public abstract class AbstractGenericService<ENTITY, REQUEST_DTO, RESPONSE_DTO, 
         beforeDelete(id);
         ENTITY entity = repository.findById(id)
                 .orElseThrow(() -> EntityNotFoundException.forId(id));
-        if (entity instanceof AbstractAuditingEntity baseEntity) {
+        if (entity instanceof AbstractAuditingBase baseEntity) {
             baseEntity.softDelete();
             repository.save(entity);
         } else {
