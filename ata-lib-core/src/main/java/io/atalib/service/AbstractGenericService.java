@@ -112,7 +112,7 @@ public abstract class AbstractGenericService<ENTITY, REQUEST_DTO, RESPONSE_DTO, 
     protected Page<ENTITY> fetchEntities(Pageable pageable) {
         Sort sort = Sort.by(Sort.Direction.DESC, "updatedAt");
         PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        return repository.findAll(pageRequest);
+        return repository.findAllByDeletedFalse(pageRequest);
     }
 
     // -------------------------------------------------------------------------
