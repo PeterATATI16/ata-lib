@@ -68,6 +68,10 @@ public class AtaEntityProcessor extends AbstractProcessor {
         @SuppressWarnings("unchecked")
         List<String> requestExcludeList  = (List<String>) attrValues.getOrDefault("requestExclude", List.of());
 
+        // idType is a Class<?> attribute — APT returns it as a TypeMirror whose toString() gives the FQN
+        String idTypeFqn = attrValues.getOrDefault("idType", "java.lang.Long").toString();
+        TypeUtils.TypeResolution idTypeRes = TypeUtils.resolve(idTypeFqn);
+
         if (table.isBlank())   table   = TypeUtils.toSnakeCase(className);
         if (baseUrl.isBlank()) baseUrl = "/" + className.toLowerCase();
 
@@ -76,7 +80,8 @@ public class AtaEntityProcessor extends AbstractProcessor {
 
         List<FieldModel> fields = buildFields(typeElement);
 
-        return new EntityModel(className, packageName, table, baseUrl, fields, responseExclude, requestExclude);
+        return new EntityModel(className, packageName, table, baseUrl, fields, responseExclude, requestExclude,
+                idTypeRes.displayName, new ArrayList<>(idTypeRes.imports));
     }
 
     private List<FieldModel> buildFields(TypeElement typeElement) {

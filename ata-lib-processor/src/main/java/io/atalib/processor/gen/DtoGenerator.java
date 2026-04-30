@@ -12,15 +12,19 @@ public final class DtoGenerator {
     private DtoGenerator() {}
 
     public static String generateResponse(EntityModel model) {
-        return build(model.getPackageName(), model.responseDtoName(), model.getResponseFields(), true);
+        return build(model.getPackageName(), model.responseDtoName(), model.getResponseFields(),
+                model.getIdTypeName(), model.getIdTypeImports(), true);
     }
 
     public static String generateRequest(EntityModel model) {
-        return build(model.getPackageName(), model.requestDtoName(), model.getRequestFields(), false);
+        return build(model.getPackageName(), model.requestDtoName(), model.getRequestFields(),
+                model.getIdTypeName(), model.getIdTypeImports(), false);
     }
 
-    private static String build(String pkg, String className, List<FieldModel> fields, boolean includeId) {
+    private static String build(String pkg, String className, List<FieldModel> fields,
+                                String idTypeName, List<String> idTypeImports, boolean includeId) {
         Set<String> imports = new LinkedHashSet<>();
+        if (includeId) imports.addAll(idTypeImports);
         for (FieldModel f : fields) {
             imports.addAll(f.getTypeImports());
         }
@@ -35,7 +39,7 @@ public final class DtoGenerator {
 
         // Fields
         if (includeId) {
-            sb.append("    private Long id;\n");
+            sb.append("    private ").append(idTypeName).append(" id;\n");
         }
         for (FieldModel f : fields) {
             sb.append("\n");
@@ -52,7 +56,7 @@ public final class DtoGenerator {
         sb.append("\n    public ").append(className).append("(");
         boolean firstParam = true;
         if (includeId) {
-            sb.append("Long id");
+            sb.append(idTypeName).append(" id");
             firstParam = false;
         }
         for (FieldModel f : fields) {
@@ -69,8 +73,8 @@ public final class DtoGenerator {
 
         // Explicit getters and setters (avoid Lombok ordering issues with MapStruct multi-round APT)
         if (includeId) {
-            sb.append("\n    public Long getId() { return id; }\n");
-            sb.append("    public void setId(Long id) { this.id = id; }\n");
+            sb.append("\n    public ").append(idTypeName).append(" getId() { return id; }\n");
+            sb.append("    public void setId(").append(idTypeName).append(" id) { this.id = id; }\n");
         }
         for (FieldModel f : fields) {
             String cap = capitalize(f.getName());

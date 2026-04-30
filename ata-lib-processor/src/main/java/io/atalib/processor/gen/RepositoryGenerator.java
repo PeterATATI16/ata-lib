@@ -11,16 +11,22 @@ public final class RepositoryGenerator {
         String entity = model.getClassName();
         String repo   = model.repositoryName();
 
-        return "package " + pkg + ";\n\n"
-                + "import org.springframework.data.domain.Page;\n"
-                + "import org.springframework.data.domain.Pageable;\n"
-                + "import org.springframework.data.jpa.repository.JpaRepository;\n"
-                + "import org.springframework.stereotype.Repository;\n"
-                + "import java.util.List;\n\n"
-                + "@Repository\n"
-                + "public interface " + repo + " extends JpaRepository<" + entity + ", Long> {\n\n"
-                + "    Page<" + entity + "> findAllByDeletedFalse(Pageable pageable);\n\n"
-                + "    List<" + entity + "> findAllByDeletedFalse();\n"
-                + "}\n";
+        String idType = model.getIdTypeName();
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(pkg).append(";\n\n");
+        sb.append("import org.springframework.data.domain.Page;\n");
+        sb.append("import org.springframework.data.domain.Pageable;\n");
+        sb.append("import org.springframework.data.jpa.repository.JpaRepository;\n");
+        sb.append("import org.springframework.stereotype.Repository;\n");
+        sb.append("import java.util.List;\n");
+        for (String imp : model.getIdTypeImports()) {
+            sb.append("import ").append(imp).append(";\n");
+        }
+        sb.append("\n@Repository\n");
+        sb.append("public interface ").append(repo).append(" extends JpaRepository<").append(entity).append(", ").append(idType).append("> {\n\n");
+        sb.append("    Page<").append(entity).append("> findAllByDeletedFalse(Pageable pageable);\n\n");
+        sb.append("    List<").append(entity).append("> findAllByDeletedFalse();\n");
+        sb.append("}\n");
+        return sb.toString();
     }
 }

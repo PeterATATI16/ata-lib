@@ -17,9 +17,12 @@ public class EntityModel {
     private final List<FieldModel> fields;
     private final Set<String> responseExclude;
     private final Set<String> requestExclude;
+    private final String idTypeName;
+    private final List<String> idTypeImports;
 
     public EntityModel(String className, String packageName, String tableName, String baseUrl,
-                       List<FieldModel> fields, Set<String> responseExclude, Set<String> requestExclude) {
+                       List<FieldModel> fields, Set<String> responseExclude, Set<String> requestExclude,
+                       String idTypeName, List<String> idTypeImports) {
         this.className = className;
         this.packageName = packageName;
         this.tableName = tableName;
@@ -27,6 +30,8 @@ public class EntityModel {
         this.fields = fields;
         this.responseExclude = responseExclude;
         this.requestExclude = requestExclude;
+        this.idTypeName = idTypeName;
+        this.idTypeImports = idTypeImports;
     }
 
     // -------------------------------------------------------------------------
@@ -44,7 +49,6 @@ public class EntityModel {
     // Filtered field views
     // -------------------------------------------------------------------------
 
-    /** Fields included in the ResponseDto (entity fields minus audit + responseExclude). */
     public List<FieldModel> getResponseFields() {
         return fields.stream()
                 .filter(f -> !AUDIT_FIELDS.contains(f.getName()))
@@ -52,7 +56,6 @@ public class EntityModel {
                 .collect(Collectors.toList());
     }
 
-    /** Fields included in the RequestDto (entity fields minus audit + id + requestExclude). */
     public List<FieldModel> getRequestFields() {
         return fields.stream()
                 .filter(f -> !AUDIT_FIELDS.contains(f.getName()))
@@ -64,9 +67,11 @@ public class EntityModel {
     // Accessors
     // -------------------------------------------------------------------------
 
-    public String getClassName()   { return className; }
-    public String getPackageName() { return packageName; }
-    public String getTableName()   { return tableName; }
-    public String getBaseUrl()     { return baseUrl; }
+    public String getClassName()      { return className; }
+    public String getPackageName()    { return packageName; }
+    public String getTableName()      { return tableName; }
+    public String getBaseUrl()        { return baseUrl; }
     public List<FieldModel> getFields() { return fields; }
+    public String getIdTypeName()     { return idTypeName; }
+    public List<String> getIdTypeImports() { return idTypeImports; }
 }

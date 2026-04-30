@@ -17,6 +17,8 @@ public final class ServiceGenerator {
 
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(pkg).append(";\n\n");
+        String idType = model.getIdTypeName();
+
         sb.append("import io.atalib.annotation.AtaService;\n");
         sb.append("import io.atalib.service.AbstractGenericService;\n");
         sb.append("import org.springframework.data.domain.Page;\n");
@@ -24,11 +26,15 @@ public final class ServiceGenerator {
         sb.append("import org.springframework.data.domain.Pageable;\n");
         sb.append("import org.springframework.data.domain.Sort;\n");
         sb.append("import java.util.List;\n");
-        sb.append("import java.util.stream.Collectors;\n\n");
+        sb.append("import java.util.stream.Collectors;\n");
+        for (String imp : model.getIdTypeImports()) {
+            sb.append("import ").append(imp).append(";\n");
+        }
+        sb.append("\n");
         sb.append("@AtaService\n");
         sb.append("public class ").append(impl)
                 .append(" extends AbstractGenericService<")
-                .append(entity).append(", ").append(req).append(", ").append(resp).append(", Long> {\n\n");
+                .append(entity).append(", ").append(req).append(", ").append(resp).append(", ").append(idType).append("> {\n\n");
 
         sb.append("    private final ").append(repo).append(" repository;\n");
         sb.append("    private final ").append(mapper).append(" mapper;\n\n");

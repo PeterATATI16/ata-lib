@@ -40,4 +40,7 @@ public @interface AtaEntity {
 
     /** Base URL du contrôleur REST généré. Par défaut : /{nomEntitéEnMinuscules}. */
     String baseUrl() default "";
+
+    /** Type de l'identifiant. Par défaut : Long. Exemples : UUID.class, Integer.class. */
+    Class<?> idType() default Long.class;
 }
