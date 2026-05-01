@@ -7,7 +7,7 @@ public final class ServiceGenerator {
     private ServiceGenerator() {}
 
     public static String generate(EntityModel model) {
-        String pkg    = model.getPackageName();
+        String pkg    = model.getGeneratedPackageName();
         String entity = model.getClassName();
         String resp   = model.responseDtoName();
         String req    = model.requestDtoName();
@@ -19,6 +19,7 @@ public final class ServiceGenerator {
         sb.append("package ").append(pkg).append(";\n\n");
         String idType = model.getIdTypeName();
 
+        sb.append("import ").append(model.getEntityFqn()).append(";\n");
         sb.append("import io.atalib.annotation.AtaService;\n");
         sb.append("import io.atalib.service.AbstractGenericService;\n");
         sb.append("import org.springframework.data.domain.Page;\n");

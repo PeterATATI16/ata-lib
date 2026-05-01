@@ -7,7 +7,7 @@ public final class ControllerGenerator {
     private ControllerGenerator() {}
 
     public static String generate(EntityModel model) {
-        String pkg  = model.getPackageName();
+        String pkg  = model.getGeneratedPackageName();
         String req  = model.requestDtoName();
         String resp = model.responseDtoName();
         String impl = model.serviceImplName();

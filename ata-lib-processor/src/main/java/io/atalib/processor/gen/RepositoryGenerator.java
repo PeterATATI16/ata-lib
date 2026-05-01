@@ -7,13 +7,14 @@ public final class RepositoryGenerator {
     private RepositoryGenerator() {}
 
     public static String generate(EntityModel model) {
-        String pkg    = model.getPackageName();
+        String pkg    = model.getGeneratedPackageName();
         String entity = model.getClassName();
         String repo   = model.repositoryName();
 
         String idType = model.getIdTypeName();
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(pkg).append(";\n\n");
+        sb.append("import ").append(model.getEntityFqn()).append(";\n");
         sb.append("import org.springframework.data.domain.Page;\n");
         sb.append("import org.springframework.data.domain.Pageable;\n");
         sb.append("import org.springframework.data.jpa.repository.JpaRepository;\n");

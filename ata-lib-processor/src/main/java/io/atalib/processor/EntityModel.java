@@ -65,10 +65,14 @@ public class EntityModel {
     // Accessors
     // -------------------------------------------------------------------------
 
-    public String getClassName()      { return className; }
-    public String getPackageName()    { return packageName; }
-    public String getBaseUrl()        { return baseUrl; }
-    public List<FieldModel> getFields() { return fields; }
-    public String getIdTypeName()     { return idTypeName; }
+    public String getClassName()           { return className; }
+    public String getPackageName()         { return packageName; }
+    /** Package where all generated files are written — one subpackage per entity. */
+    public String getGeneratedPackageName() { return packageName + "." + className.toLowerCase(); }
+    /** Fully-qualified entity class name, used as import in generated files. */
+    public String getEntityFqn()           { return packageName + "." + className; }
+    public String getBaseUrl()             { return baseUrl; }
+    public List<FieldModel> getFields()    { return fields; }
+    public String getIdTypeName()          { return idTypeName; }
     public List<String> getIdTypeImports() { return idTypeImports; }
 }

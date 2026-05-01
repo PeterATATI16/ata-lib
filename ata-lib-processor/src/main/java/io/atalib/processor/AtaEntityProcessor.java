@@ -128,12 +128,13 @@ public class AtaEntityProcessor extends AbstractProcessor {
     // -------------------------------------------------------------------------
 
     private void generateAll(EntityModel model) throws IOException {
-        write(model.getPackageName() + "." + model.responseDtoName(),  DtoGenerator.generateResponse(model));
-        write(model.getPackageName() + "." + model.requestDtoName(),   DtoGenerator.generateRequest(model));
-        write(model.getPackageName() + "." + model.mapperName(),       MapperGenerator.generate(model));
-        write(model.getPackageName() + "." + model.repositoryName(),   RepositoryGenerator.generate(model));
-        write(model.getPackageName() + "." + model.serviceImplName(),  ServiceGenerator.generate(model));
-        write(model.getPackageName() + "." + model.controllerName(),   ControllerGenerator.generate(model));
+        String genPkg = model.getGeneratedPackageName();
+        write(genPkg + "." + model.responseDtoName(),  DtoGenerator.generateResponse(model));
+        write(genPkg + "." + model.requestDtoName(),   DtoGenerator.generateRequest(model));
+        write(genPkg + "." + model.mapperName(),       MapperGenerator.generate(model));
+        write(genPkg + "." + model.repositoryName(),   RepositoryGenerator.generate(model));
+        write(genPkg + "." + model.serviceImplName(),  ServiceGenerator.generate(model));
+        write(genPkg + "." + model.controllerName(),   ControllerGenerator.generate(model));
     }
 
     private void write(String qualifiedName, String content) throws IOException {

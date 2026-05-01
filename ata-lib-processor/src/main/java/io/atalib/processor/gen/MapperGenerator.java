@@ -11,14 +11,15 @@ public final class MapperGenerator {
     private MapperGenerator() {}
 
     public static String generate(EntityModel model) {
-        String pkg   = model.getPackageName();
+        String pkg    = model.getGeneratedPackageName();
         String entity = model.getClassName();
-        String resp  = model.responseDtoName();
-        String req   = model.requestDtoName();
+        String resp   = model.responseDtoName();
+        String req    = model.requestDtoName();
         String mapper = model.mapperName();
 
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(pkg).append(";\n\n");
+        sb.append("import ").append(model.getEntityFqn()).append(";\n");
         sb.append("import org.mapstruct.BeanMapping;\n");
         sb.append("import org.mapstruct.Mapper;\n");
         sb.append("import org.mapstruct.Mapping;\n");

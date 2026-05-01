@@ -12,12 +12,12 @@ public final class DtoGenerator {
     private DtoGenerator() {}
 
     public static String generateResponse(EntityModel model) {
-        return build(model.getPackageName(), model.responseDtoName(), model.getResponseFields(),
+        return build(model.getGeneratedPackageName(), model.responseDtoName(), model.getResponseFields(),
                 model.getIdTypeName(), model.getIdTypeImports(), true);
     }
 
     public static String generateRequest(EntityModel model) {
-        return build(model.getPackageName(), model.requestDtoName(), model.getRequestFields(),
+        return build(model.getGeneratedPackageName(), model.requestDtoName(), model.getRequestFields(),
                 model.getIdTypeName(), model.getIdTypeImports(), false);
     }
 
