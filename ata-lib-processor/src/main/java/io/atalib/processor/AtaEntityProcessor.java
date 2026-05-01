@@ -26,6 +26,16 @@ public class AtaEntityProcessor extends AbstractProcessor {
             "org.hibernate."
     );
 
+    // JPA relation annotations — fields carrying these are excluded from generated DTOs
+    private static final Set<String> JPA_RELATION_ANNOTATIONS = Set.of(
+            "jakarta.persistence.OneToOne",
+            "jakarta.persistence.OneToMany",
+            "jakarta.persistence.ManyToOne",
+            "jakarta.persistence.ManyToMany",
+            "jakarta.persistence.Embedded",
+            "jakarta.persistence.ElementCollection"
+    );
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         if (roundEnv.processingOver()) return false;
@@ -91,6 +101,11 @@ public class AtaEntityProcessor extends AbstractProcessor {
             if (field.getModifiers().contains(Modifier.STATIC)) continue;
 
             String name = field.getSimpleName().toString();
+
+            boolean isRelation = field.getAnnotationMirrors().stream()
+                    .anyMatch(m -> JPA_RELATION_ANNOTATIONS.contains(m.getAnnotationType().toString()));
+            if (isRelation) continue;
+
             TypeMirror typeMirror = field.asType();
             TypeUtils.TypeResolution resolution = TypeUtils.resolve(typeMirror.toString());
 
