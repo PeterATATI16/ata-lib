@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -108,11 +109,29 @@ public abstract class AbstractGenericService<ENTITY, REQUEST_DTO, RESPONSE_DTO, 
     /**
      * Surcharger pour filtrer les entités retournées par getAll (ex: par utilisateur, rôle, tenant…).
      * Par défaut, retourne toutes les entités triées par updatedAt DESC.
+     *
+     * <p><strong>Important :</strong> si l'entité étend {@link AbstractAuditingBase}, cette implémentation
+     * par défaut inclut les entités supprimées (deleted=true). Surcharger cette méthode avec
+     * {@code repository.findAllByDeletedFalse(pageable)} pour les exclure à niveau requête.
      */
     protected Page<ENTITY> fetchEntities(Pageable pageable) {
         Sort sort = Sort.by(Sort.Direction.DESC, "updatedAt");
         PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        return repository.findAll(pageRequest);
+        Page<ENTITY> page = repository.findAll(pageRequest);
+        if (!page.isEmpty() && page.getContent().get(0) instanceof AbstractAuditingBase) {
+            log.warn("[ata-lib] fetchEntities() called on a soft-delete entity without override — " +
+                    "deleted=true records are included. Override fetchEntities() to filter them at query level.");
+        }
+        return page;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RESPONSE_DTO> getAllWithoutPagination() {
+        return repository.findAll().stream()
+                .filter(e -> !(e instanceof AbstractAuditingBase b) || !Boolean.TRUE.equals(b.getDeleted()))
+                .map(entityToDtoMapper)
+                .toList();
     }
 
     // -------------------------------------------------------------------------
