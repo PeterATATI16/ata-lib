@@ -77,6 +77,16 @@ public class AtaEntityProcessor extends AbstractProcessor {
         List<String> responseExcludeList = (List<String>) attrValues.getOrDefault("responseExclude", List.of());
         @SuppressWarnings("unchecked")
         List<String> requestExcludeList  = (List<String>) attrValues.getOrDefault("requestExclude", List.of());
+        @SuppressWarnings("unchecked")
+        List<String> securedCreate = (List<String>) attrValues.getOrDefault("securedCreate", List.of());
+        @SuppressWarnings("unchecked")
+        List<String> securedUpdate = (List<String>) attrValues.getOrDefault("securedUpdate", List.of());
+        @SuppressWarnings("unchecked")
+        List<String> securedDelete = (List<String>) attrValues.getOrDefault("securedDelete", List.of());
+        @SuppressWarnings("unchecked")
+        List<String> securedRead   = (List<String>) attrValues.getOrDefault("securedRead",   List.of());
+        @SuppressWarnings("unchecked")
+        List<String> securedList   = (List<String>) attrValues.getOrDefault("securedList",   List.of());
 
         // Auto-detect the @Id field type by walking the entity's class hierarchy
         String idTypeFqn = detectIdTypeFqn(typeElement);
@@ -90,7 +100,8 @@ public class AtaEntityProcessor extends AbstractProcessor {
         List<FieldModel> fields = buildFields(typeElement);
 
         return new EntityModel(className, packageName, baseUrl, fields, responseExclude, requestExclude,
-                idTypeRes.displayName, new ArrayList<>(idTypeRes.imports));
+                idTypeRes.displayName, new ArrayList<>(idTypeRes.imports),
+                securedCreate, securedUpdate, securedDelete, securedRead, securedList);
     }
 
     private List<FieldModel> buildFields(TypeElement typeElement) {

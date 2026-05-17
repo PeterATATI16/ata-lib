@@ -43,4 +43,25 @@ public @interface AtaEntity {
 
     /** Base URL of the generated REST controller. Default: /{classNameLowercase}. */
     String baseUrl() default "";
+
+    // -------------------------------------------------------------------------
+    // Security — mapped to @SecuredCrud on the generated controller.
+    // Empty array means no restriction for that operation.
+    // Role values are prefixed with ROLE_ automatically by CrudSecurityAspect.
+    // -------------------------------------------------------------------------
+
+    /** Roles allowed to call POST (create). */
+    String[] securedCreate() default {};
+
+    /** Roles allowed to call PUT (update). */
+    String[] securedUpdate() default {};
+
+    /** Roles allowed to call DELETE. */
+    String[] securedDelete() default {};
+
+    /** Roles allowed to call GET /{id}. */
+    String[] securedRead() default {};
+
+    /** Roles allowed to call GET (list / getAll). */
+    String[] securedList() default {};
 }

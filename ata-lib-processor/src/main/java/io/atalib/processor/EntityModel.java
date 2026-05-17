@@ -18,10 +18,17 @@ public class EntityModel {
     private final Set<String> requestExclude;
     private final String idTypeName;
     private final List<String> idTypeImports;
+    private final List<String> securedCreate;
+    private final List<String> securedUpdate;
+    private final List<String> securedDelete;
+    private final List<String> securedRead;
+    private final List<String> securedList;
 
     public EntityModel(String className, String packageName, String baseUrl,
                        List<FieldModel> fields, Set<String> responseExclude, Set<String> requestExclude,
-                       String idTypeName, List<String> idTypeImports) {
+                       String idTypeName, List<String> idTypeImports,
+                       List<String> securedCreate, List<String> securedUpdate, List<String> securedDelete,
+                       List<String> securedRead, List<String> securedList) {
         this.className = className;
         this.packageName = packageName;
         this.baseUrl = baseUrl;
@@ -30,7 +37,23 @@ public class EntityModel {
         this.requestExclude = requestExclude;
         this.idTypeName = idTypeName;
         this.idTypeImports = idTypeImports;
+        this.securedCreate = securedCreate;
+        this.securedUpdate = securedUpdate;
+        this.securedDelete = securedDelete;
+        this.securedRead = securedRead;
+        this.securedList = securedList;
     }
+
+    public boolean hasSecurity() {
+        return !securedCreate.isEmpty() || !securedUpdate.isEmpty() || !securedDelete.isEmpty()
+                || !securedRead.isEmpty() || !securedList.isEmpty();
+    }
+
+    public List<String> getSecuredCreate() { return securedCreate; }
+    public List<String> getSecuredUpdate() { return securedUpdate; }
+    public List<String> getSecuredDelete() { return securedDelete; }
+    public List<String> getSecuredRead()   { return securedRead; }
+    public List<String> getSecuredList()   { return securedList; }
 
     // -------------------------------------------------------------------------
     // Computed names
