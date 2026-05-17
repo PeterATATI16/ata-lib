@@ -23,12 +23,15 @@ public class EntityModel {
     private final List<String> securedDelete;
     private final List<String> securedRead;
     private final List<String> securedList;
+    private final String apiTag;
+    private final String apiDescription;
 
     public EntityModel(String className, String packageName, String baseUrl,
                        List<FieldModel> fields, Set<String> responseExclude, Set<String> requestExclude,
                        String idTypeName, List<String> idTypeImports,
                        List<String> securedCreate, List<String> securedUpdate, List<String> securedDelete,
-                       List<String> securedRead, List<String> securedList) {
+                       List<String> securedRead, List<String> securedList,
+                       String apiTag, String apiDescription) {
         this.className = className;
         this.packageName = packageName;
         this.baseUrl = baseUrl;
@@ -42,6 +45,8 @@ public class EntityModel {
         this.securedDelete = securedDelete;
         this.securedRead = securedRead;
         this.securedList = securedList;
+        this.apiTag = apiTag;
+        this.apiDescription = apiDescription;
     }
 
     public boolean hasSecurity() {
@@ -54,6 +59,9 @@ public class EntityModel {
     public List<String> getSecuredDelete() { return securedDelete; }
     public List<String> getSecuredRead()   { return securedRead; }
     public List<String> getSecuredList()   { return securedList; }
+    public String getApiTag()              { return apiTag; }
+    public String getApiDescription()      { return apiDescription; }
+    public boolean hasApiTag()             { return apiTag != null && !apiTag.isBlank(); }
 
     // -------------------------------------------------------------------------
     // Computed names

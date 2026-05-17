@@ -64,4 +64,16 @@ public @interface AtaEntity {
 
     /** Roles allowed to call GET (list / getAll). */
     String[] securedList() default {};
+
+    // -------------------------------------------------------------------------
+    // OpenAPI / Swagger — mapped to @Tag on the generated controller.
+    // Requires springdoc-openapi on the consuming project's classpath.
+    // Leave empty to skip @Tag generation.
+    // -------------------------------------------------------------------------
+
+    /** OpenAPI tag name (e.g. "Staff Management"). Empty means no @Tag emitted. */
+    String apiTag() default "";
+
+    /** OpenAPI tag description. Only used when apiTag() is non-empty. */
+    String apiDescription() default "";
 }

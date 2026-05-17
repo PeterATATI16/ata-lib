@@ -36,6 +36,9 @@ public final class ControllerGenerator {
         if (model.hasSecurity()) {
             imports.append("import io.atalib.security.SecuredCrud;\n");
         }
+        if (model.hasApiTag()) {
+            imports.append("import io.swagger.v3.oas.annotations.tags.Tag;\n");
+        }
         imports.append("import jakarta.validation.Valid;\n");
         imports.append("import org.springframework.http.ResponseEntity;\n");
         imports.append("import org.springframework.web.bind.annotation.DeleteMapping;\n");
@@ -59,8 +62,16 @@ public final class ControllerGenerator {
             securedCrud.append(")\n");
         }
 
+        String apiTag = "";
+        if (model.hasApiTag()) {
+            apiTag = "@Tag(name = \"" + model.getApiTag() + "\""
+                    + (model.getApiDescription().isBlank() ? "" : ", description = \"" + model.getApiDescription() + "\"")
+                    + ")\n";
+        }
+
         return "package " + pkg + ";\n\n"
                 + imports + "\n"
+                + apiTag
                 + securedCrud
                 + "@AtaController(\"" + url + "\")\n"
                 + "public class " + ctrl + " extends AbstractGenericController<" + req + ", " + resp + ", " + idType + "> {\n\n"

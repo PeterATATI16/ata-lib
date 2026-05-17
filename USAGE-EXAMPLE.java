@@ -49,9 +49,8 @@
 // Utiliser @SuperBuilder si un builder est nécessaire, sinon omettre.
 
 @AtaEntity(
-        table           = "staff",
         responseExclude = {"password"},                         // exclure du ResponseDto
-        requestExclude  = {"id"},                               // exclure du RequestDto
+        requestExclude  = {"id"},                               // exclure du RequestDto (id toujours exclu par défaut)
         baseUrl         = "/api/v1/staff"                       // URL du controller généré
 )
 @Getter

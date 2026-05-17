@@ -21,7 +21,8 @@ class DtoGeneratorTest {
                 "Staff", "com.example.domain", "/api/v1/staff",
                 fields, responseExclude, requestExclude,
                 "Long", List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of()
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                "", ""
         );
     }
 

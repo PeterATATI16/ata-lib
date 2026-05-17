@@ -10,6 +10,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -132,6 +135,32 @@ public abstract class AbstractGenericService<ENTITY, REQUEST_DTO, RESPONSE_DTO, 
                 .filter(e -> !(e instanceof AbstractAuditingBase b) || !Boolean.TRUE.equals(b.getDeleted()))
                 .map(entityToDtoMapper)
                 .toList();
+    }
+
+    // -------------------------------------------------------------------------
+    // Filtrage dynamique via Specification (JpaSpecificationExecutor)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Retourne une page d'entités filtrées par la {@link Specification} fournie.
+     *
+     * <p>Le repository doit implémenter {@link JpaSpecificationExecutor} pour que cette méthode fonctionne.
+     * Les repositories générés par {@code ata-lib-processor} le font automatiquement.
+     *
+     * @throws UnsupportedOperationException si le repository n'implémente pas JpaSpecificationExecutor
+     */
+    @Transactional(readOnly = true)
+    public Page<RESPONSE_DTO> getAll(Specification<ENTITY> spec, Pageable pageable) {
+        if (!(repository instanceof JpaSpecificationExecutor)) {
+            throw new UnsupportedOperationException(
+                    "Repository must implement JpaSpecificationExecutor to use specification-based filtering. " +
+                    "Generated repositories support this automatically.");
+        }
+        @SuppressWarnings("unchecked")
+        JpaSpecificationExecutor<ENTITY> specRepo = (JpaSpecificationExecutor<ENTITY>) repository;
+        Sort sort = Sort.by(Sort.Direction.DESC, "updatedAt");
+        PageRequest pageRequest = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        return specRepo.findAll(spec, pageRequest).map(entityToDtoMapper);
     }
 
     // -------------------------------------------------------------------------

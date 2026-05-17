@@ -19,7 +19,8 @@ class ControllerGeneratorTest {
                 List.of(new FieldModel("name", "String", List.of(), List.of())),
                 Set.of(), Set.of(),
                 "Long", List.of(),
-                securedCreate, securedUpdate, securedDelete, securedRead, securedList
+                securedCreate, securedUpdate, securedDelete, securedRead, securedList,
+                "", ""
         );
     }
 
@@ -59,6 +60,30 @@ class ControllerGeneratorTest {
         String code = ControllerGenerator.generate(
                 model(List.of(), List.of(), List.of(), List.of(), List.of()));
         assertThat(code).contains("extends AbstractGenericController<StaffRequestDto, StaffResponseDto, Long>");
+    }
+
+    @Test
+    void withApiTag_emitsTagAnnotation() {
+        EntityModel m = new EntityModel(
+                "Staff", "com.example.domain", "/api/v1/staff",
+                List.of(new FieldModel("name", "String", List.of(), List.of())),
+                Set.of(), Set.of(), "Long", List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                "Staff Management", "Endpoints for managing staff"
+        );
+        String code = ControllerGenerator.generate(m);
+        assertThat(code)
+                .contains("@Tag(name = \"Staff Management\", description = \"Endpoints for managing staff\")")
+                .contains("import io.swagger.v3.oas.annotations.tags.Tag");
+    }
+
+    @Test
+    void withoutApiTag_doesNotEmitTagAnnotation() {
+        String code = ControllerGenerator.generate(
+                model(List.of(), List.of(), List.of(), List.of(), List.of()));
+        assertThat(code)
+                .doesNotContain("@Tag")
+                .doesNotContain("swagger");
     }
 
     @Test

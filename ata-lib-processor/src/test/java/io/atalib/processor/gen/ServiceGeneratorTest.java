@@ -17,7 +17,8 @@ class ServiceGeneratorTest {
                 List.of(new FieldModel("name", "String", List.of(), List.of())),
                 Set.of(), Set.of(),
                 "Long", List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of()
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                "", ""
         );
     }
 
